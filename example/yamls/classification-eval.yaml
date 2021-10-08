@@ -1,0 +1,24 @@
+target_dir: data/classification/images
+result_root_dir: result/classification/images
+train_dirs: # you must set train dirs to test classification
+    - train_1
+test_dirs:
+    - test
+training: no
+task: classification
+
+train_params: 
+    activation: softmax
+    optimizer: adam
+    batch_size: 8 
+    learning_rate: 0.001
+    model_name: xception
+    loss:
+      functions:
+        CategoricalCrossentropy:
+
+epochs: 2
+width: 80
+height: 80
+trained_path: result/classification/images/classification_result
+result_dir: test_classification_result

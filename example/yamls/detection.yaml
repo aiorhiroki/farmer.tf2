@@ -1,0 +1,36 @@
+target_dir: data/detection
+result_root_dir: result/detection
+train_dirs:
+    - train
+val_dirs:
+    - validation
+test_dirs:
+    - test
+training: yes
+task: detection # classification or segmentation or detection
+train_params: 
+    model_name: xception
+    backbone: 
+    activation: softmax
+    optimizer: adam
+    loss:
+      functions:
+        CategoricalCrossentropy:
+    batch_size: 4
+    learning_rate: 0.001
+    augmentation:
+    weights_info:
+        classes: 
+        weights: 
+
+epochs: 2
+steps: 3
+width: 320
+height: 320
+input_dir: image
+label_dir: xml
+result_dir: detection_result
+class_names:
+    - bird
+    - car
+    - train

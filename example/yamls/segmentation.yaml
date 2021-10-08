@@ -1,0 +1,98 @@
+target_dir: data/segmentation
+result_root_dir: result/segmentation
+train_dirs:
+    - train_1
+    - train_2
+    - validation
+
+# key: cross_val, args: 0,1,2,3,4,all,step
+# all=0->1->2->..., step=0->0+1->0+1+2->...
+cross_val: 0
+
+test_dirs:
+    - test
+training: yes
+task: segmentation # classification or segmentation is supported
+
+train_params: 
+    model_name: deeplab_v3
+    backbone: mobilenetv2
+    activation: softmax
+    optimizer: adam
+    loss:
+      functions:
+        CategoricalFocalLoss:
+            alpha: 
+                0: 1.0
+                1: 1.0
+                2: 2.0
+                3: 3.0
+            gamma: 5.0
+            class_weights: 
+                0: 0.0
+                1: 1.0
+                2: 2.0
+                3: 3.0
+        DiceLoss:
+            beta:
+                0: 1.0
+                1: 1.0
+                2: 2.0
+                3: 3.0
+            class_weights: 
+                0: 0.0
+                1: 1.0
+                2: 2.0
+                3: 3.0
+    scheduler:
+        functions:
+            CosineDecay:
+                lr_max: 0.001
+                lr_min: 0.0001
+    batch_size: 8 
+    learning_rate: 0.001
+    weights_info: 
+        classes: # assign only when you use backbone weights
+        weights: 
+    augmentation:
+        HorizontalFlip:
+        IAAPerspective:
+            scale-1: 0.05
+            scale-2: 0.1
+        PadIfNeeded:
+            min_height: 256
+            min_width: 512
+            always_apply: True
+            border_mode: 0 #need to apply when using randomcrop
+        RandomCrop: 
+                height: 256
+                width: 512
+                p: 1
+        OneOf-1:
+            Blur:
+            MotionBlur:
+                p: 1  # percentage of function inside 'OneOf'
+            p: 1  # percetage of 'OneOf'
+    augmix: yes            
+epochs: 2
+segmentation_val_step: 2
+n_trials: 3
+width: 512
+height: 256
+input_dir: image
+label_dir: label
+trained_path:
+result_dir: segmentation_result
+class_names:
+    - background
+    - hoge
+    - fuga
+    - piyo
+train_colors:
+    - 0
+    - 5
+    - 10
+    - 15
+early_stopping: yes # yes if using early_stopping to interruption
+patience: 5
+monitor: val_loss

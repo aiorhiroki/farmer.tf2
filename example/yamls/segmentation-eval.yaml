@@ -1,0 +1,40 @@
+target_dir: data/segmentation
+result_root_dir: result/segmentation
+test_dirs:
+    - test
+training: no
+task: segmentation
+
+
+train_params: 
+    model_name: deeplab_v3
+    backbone: mobilenetv2
+    activation: softmax
+    optimizer: adam
+    loss:
+      functions:
+        DiceLoss:
+    batch_size: 8 
+    learning_rate: 0.001
+    weights_info:
+        classes: # assign only when you use backbone weights
+        weights: 
+    augmentation: no
+
+epochs: 2
+width: 512
+height: 256
+input_dir: image
+label_dir: label
+trained_path: result/segmentation/segmentation_result/cv_0
+result_dir: test_segmentation_result
+class_names:
+    - background
+    - hoge
+    - fuga
+    - piyo
+train_colors:
+    - 0
+    - 5
+    - 10
+    - 15

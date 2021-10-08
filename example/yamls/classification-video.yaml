@@ -1,0 +1,40 @@
+target_dir: data/classification/videos
+result_root_dir: result/classification/videos
+train_dirs:
+    - train
+val_dirs:
+    - validation
+test_dirs:
+    - test
+training: yes
+task: classification # classification or segmentation or detection
+input_data_type: video # image or video
+
+train_params: 
+    activation: softmax
+    optimizer: adam
+    batch_size: 2
+    learning_rate: 0.001
+    model_name: xception
+    loss:
+      functions:
+        CategoricalCrossentropy:
+    classification_class_weight:
+        0: 1
+        1: 2
+
+epochs: 2
+width: 80
+height: 80
+batch_period: 5
+trained_model_path:
+result_dir: classification_video_result
+skip_frame: 5
+class_names:
+    - cat
+    # - flower
+    - dog
+predict_videos:
+    - name: data/classification/videos/test/SampleVideo_1280x720_1mb.mp4
+      start_time: 0:00:02
+      end_time: 0:00:04

@@ -1,0 +1,37 @@
+target_dir: data/detection
+result_root_dir: result/detection
+train_dirs: # you must set train dirs to test classification
+    - train
+test_dirs:
+    - test
+training: no
+task: detection # classification or segmentation or detection
+
+train_params: 
+    model_name: xception
+    backbone: 
+    activation: softmax
+    optimizer: adam
+    loss:
+      functions:
+        CategoricalCrossentropy:
+    batch_size: 4
+    learning_rate: 0.001
+    augmentation:
+    weights_info:
+        classes: 
+        weights: 
+
+
+epochs: 2
+steps: 3
+width: 320
+height: 320
+input_dir: image
+label_dir: xml
+trained_path: result/detection/detection_result/model/resnet50_csv_02.h5
+result_dir: test_detection_result
+class_names:
+    - bird
+    - car
+    - train
