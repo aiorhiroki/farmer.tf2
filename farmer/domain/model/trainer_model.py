@@ -39,6 +39,15 @@ class Trainer(Config, ImageLoader):
     trial_params: dict = None
     pruner: str = "MedianPruner"
     pruner_params: dict = None
+    sdice_tolerance: float = 0.0
+    mlflow: bool = False
+    experiment_name: str = None
+    run_name: str = None
+    description: str = None
+    tracking_uri: str = None
+    data_dvc_path: dict = None
+    version: str = None
+    user_name: str = None
 
     def __post_init__(self):
         self.task = self.get_task()
