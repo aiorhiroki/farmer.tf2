@@ -55,17 +55,18 @@ WEIGHTS_PATH_X_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/d
 WEIGHTS_PATH_MOBILE_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.2/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels_cityscapes.h5"
 
 
-def Deeplabv3(weights_info=None, input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
+def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
               OS=16, alpha=1., activation='softmax'):
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
     on PASCAL VOC or Cityscapes. This model is available for TensorFlow only.
     # Arguments
-        weights_info: this dict is consisted of `classes` and `weghts`.
+        weights_info: this dict is consisted of `classes` and `weights`.
             `classes` is number of `weights` output units.
             `weights` is one of 'imagenet' (pre-training on ImageNet), 'pascal_voc', 'cityscapes',
             original weights path (pre-training on original data) or None (random initialization)
+            `task` is one of 'classification' or 'segmentation'.
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: shape of input image. format HxWxC
@@ -104,9 +105,13 @@ def Deeplabv3(weights_info=None, input_tensor=None, input_shape=(512, 512, 3), c
                          '`xception`  or `mobilenetv2` or `efficientnetb#`')
 
     if weights_info is None:
-        weights = 'pascal_voc'
+        weights = None
     else:
-        weights = weights_info["weights"]
+        weights = weights_info.get("weights")
+        if weights_info.get("task") == 'segmentation':
+            output_classes = classes  # save variable `classes` in another variable
+            # overwrite classes to load pretrained segmentation model
+            classes = int(weights_info['classes'])
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -145,9 +150,7 @@ def Deeplabv3(weights_info=None, input_tensor=None, input_shape=(512, 512, 3), c
             OS=OS,
             include_top=False,
         )
-
     x = base_model.output
-
     # end of feature extractor
 
     # branching for Atrous Spatial Pyramid Pooling
@@ -270,10 +273,22 @@ def Deeplabv3(weights_info=None, input_tensor=None, input_shape=(512, 512, 3), c
             return model
         model.load_weights(weights_path, by_name=True)
         print("loaded weights of cityscapes")
-    
+
     elif os.path.exists(weights):
-        if weights_info.get("classes") is None:
+        if weights_info.get("task") == 'segmentation':
             model.load_weights(weights)
+            # re-build to change output number of channels
+            x = model.get_layer(index=-4).output  # before `custom_logits_semantic` layer
+            x = Conv2D(output_classes, (1, 1), padding='same', name=last_layer_name)(x)
+            x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
+                                                            size_before3[1:3],
+                                                            method='bilinear', align_corners=True))(x)
+            if activation in {'softmax', 'sigmoid', 'linear'}:
+                x = Activation(activation)(x)
+
+            model = Model(inputs=model.input, outputs=x, name='deeplabv3plus')
+            print(f'loaded weights of {weights} and changed output number of classes from {classes} to {output_classes}')
+
     return model
 
 
