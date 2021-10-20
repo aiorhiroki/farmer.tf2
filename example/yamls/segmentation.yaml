@@ -52,8 +52,9 @@ train_params:
     batch_size: 8 
     learning_rate: 0.001
     weights_info: 
+        task:  # segmentation or classification or None
         classes: # assign only when you use backbone weights
-        weights: 
+        weights:  # pascal_voc, cityscapes, or your model path(*.h5)
     augmentation:
         HorizontalFlip:
         IAAPerspective:
