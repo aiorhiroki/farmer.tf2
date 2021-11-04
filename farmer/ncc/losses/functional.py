@@ -158,7 +158,7 @@ def asymmetric_focal_tversky_loss(gt, pr, delta=0.7, gamma=0.75):
 
     #calculate losses separately for each class, only enhancing foreground class
     back_dice = 1 - dice_class[0]
-    back_dice = tf.reshape(back_dice, tf.TensorShape([1,]))
+    back_dice = tf.expand_dims(back_dice, -1)
     fore_dice = (1 - dice_class[1:]) * K.pow(1 - dice_class[1:], -gamma)
     
     # Average class scores
