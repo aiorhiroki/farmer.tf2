@@ -23,25 +23,23 @@ from __future__ import print_function
 
 import os
 
-import tensorflow as tf
+import tensorflow
 
 from tensorflow.python.keras.models import Model
-from tensorflow.python.keras import layers
 from tensorflow.python.keras.layers import Input
 from tensorflow.python.keras.layers import Lambda
 from tensorflow.python.keras.layers import Activation
 from tensorflow.python.keras.layers import Concatenate
-from tensorflow.python.keras.layers import Add
 from tensorflow.python.keras.layers import Dropout
 from tensorflow.python.keras.layers import BatchNormalization
 from tensorflow.python.keras.layers import Conv2D
-from tensorflow.python.keras.layers import DepthwiseConv2D
-from tensorflow.python.keras.layers import ZeroPadding2D
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
+from tensorflow.python.keras.layers import MaxPool2D
+from tensorflow.python.keras.layers import Dense
+from tensorflow.python.keras.layers import Flatten
+from tensorflow.python.keras.layers import ReLU
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
 from tensorflow.python.keras.utils.data_utils import get_file
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.activations import relu
 from tensorflow.python.keras.applications.imagenet_utils import preprocess_input
 
 from tensorflow.keras.applications import efficientnet
@@ -56,7 +54,7 @@ WEIGHTS_PATH_MOBILE_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/relea
 
 
 def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
-              OS=16, alpha=1., activation='softmax'):
+              OS=16, alpha=1., activation='softmax', mask_dice_head=False):
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
@@ -156,19 +154,19 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     # branching for Atrous Spatial Pyramid Pooling
 
     # Image Feature branch
-    shape_before = tf.shape(x)
+    shape_before = tensorflow.shape(x)
     b4 = GlobalAveragePooling2D()(x)
     # from (b_size, channels)->(b_size, 1, 1, channels)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
+    b4 = Lambda(lambda x: tensorflow.keras.backend.expand_dims(x, 1))(b4)
+    b4 = Lambda(lambda x: tensorflow.keras.backend.expand_dims(x, 1))(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation('relu')(b4)
     # upsample. have to use compat because of the option align_corners
-    size_before = tf.keras.backend.int_shape(x)
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
-                                                    method='bilinear', align_corners=True))(b4)
+    size_before = tensorflow.keras.backend.int_shape(x)
+    b4 = Lambda(lambda x: tensorflow.compat.v1.image.resize(x, size_before[1:3],
+                                                            method='bilinear', align_corners=True))(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -195,17 +193,17 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
                use_bias=False, name='concat_projection')(x)
     x = BatchNormalization(name='concat_projection_BN', epsilon=1e-5)(x)
     x = Activation('relu')(x)
-    x = Dropout(0.1)(x)
-    # DeepLab v.3+ decoder
+    x = Dropout(0.1, name='dropout_encoder_last')(x)
 
+    # DeepLab v.3+ decoder
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
-        size_before2 = tf.keras.backend.int_shape(x)
-        x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        size_before2[1:3] *
-                                                        tf.constant(OS // 4),
-                                                        method='bilinear', align_corners=True))(x)
+        size_before2 = tensorflow.keras.backend.int_shape(x)
+        x = Lambda(lambda xx: tensorflow.compat.v1.image.resize(xx,
+                                                                size_before2[1:3] *
+                                                                tensorflow.constant(OS // 4),
+                                                                method='bilinear', align_corners=True))(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
@@ -225,10 +223,10 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         last_layer_name = 'custom_logits_semantic'
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
-    size_before3 = tf.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                    size_before3[1:3],
-                                                    method='bilinear', align_corners=True))(x)
+    size_before3 = tensorflow.keras.backend.int_shape(img_input)
+    x = Lambda(lambda xx: tensorflow.compat.v1.image.resize(xx,
+                                                            size_before3[1:3],
+                                                            method='bilinear', align_corners=True))(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -238,7 +236,7 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         inputs = img_input
 
     if activation in {'softmax', 'sigmoid', 'linear'}:
-        x = Activation(activation)(x)
+        x = Activation(activation, name='last_activation')(x)
 
     model = Model(inputs, x, name='deeplabv3plus')
 
@@ -280,14 +278,42 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
             # re-build to change output number of channels
             x = model.get_layer(index=-4).output  # before `custom_logits_semantic` layer
             x = Conv2D(output_classes, (1, 1), padding='same', name=last_layer_name)(x)
-            x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                            size_before3[1:3],
-                                                            method='bilinear', align_corners=True))(x)
+            x = Lambda(lambda xx: tensorflow.compat.v1.image.resize(xx,
+                                                                    size_before3[1:3],
+                                                                    method='bilinear', align_corners=True))(x)
             if activation in {'softmax', 'sigmoid', 'linear'}:
                 x = Activation(activation)(x)
 
             model = Model(inputs=model.input, outputs=x, name='deeplabv3plus')
             print(f'loaded weights of {weights} and changed output number of classes from {classes} to {output_classes}')
+
+    if mask_dice_head:
+        # feature extractor
+        encoder_last = model.get_layer(name='dropout_encoder_last').output  # (256, 512, 3) -> (16, 32, 256)
+        # mask predictor
+        segmentation_output = model.get_layer(name=last_layer_name).output  # (256, 512, 3) -> (64, 128, 256)
+        segmentation_output = Activation(activation)(segmentation_output)
+        x = MaxPool2D((4, 4), 4)(segmentation_output)  # (64, 128, 256) -> (16, 32, 256)
+        # Dice regression head
+        x = Concatenate()([x, encoder_last])
+        for i in range(3):
+            x = Conv2D(256, (3, 3), padding='same', use_bias=False)(x)
+            x = BatchNormalization(epsilon=1e-5)(x)
+            x = Activation('relu')(x)
+        x = Conv2D(256, (3, 3), 2, padding='same', use_bias=False)(x)
+        x = BatchNormalization(epsilon=1e-5)(x)
+        x = Activation('relu')(x)
+        x = Flatten()(x)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.2)(x)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        # mask dice predictor
+        x = Dense(classes)(x)
+        x = ReLU(max_value=1, name='mask_dice_head')(x)
+
+        model = Model(inputs=model.input, outputs=[model.output, x], name='deeplabv3plusWithDiceHead')
+        print('build DeeplabV3+ with MaskDiceHead for regression dice')
 
     return model
 
