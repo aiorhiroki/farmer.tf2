@@ -310,9 +310,17 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         x = Dropout(0.5)(x)
         # mask dice predictor
         x = Dense(classes)(x)
-        x = ReLU(max_value=1, name='mask_dice_head')(x)
+        regression = ReLU(max_value=1, name='mask_dice_head')(x)  # limit from 0 to 1
 
-        model = Model(inputs=model.input, outputs=[model.output, x], name='deeplabv3plusWithDiceHead')
+        # multiple outputs but calculate one loss because get gt dice between gt mask and pr mask
+        # so this is trick to calculate one loss
+        # resize shape for matching to mask
+        x = Lambda(lambda x: x[:, tensorflow.newaxis, tensorflow.newaxis, :])(regression)  # (N,C) -> (N,1,1,C)
+        x = Lambda(lambda x: tensorflow.tile(x, tensorflow.constant((1, input_shape[0], input_shape[1], 1))))(x)  # (N,H,W,C)
+        # concatenate mask and dice
+        x = Concatenate()([model.output, x])
+        # if get dice head, do slice like `output[..., classes:]`
+        model = Model(inputs=model.input, outputs=x, name='deeplabv3plusWithDiceHead')
         print('build DeeplabV3+ with MaskDiceHead for regression dice')
 
     return model

@@ -248,6 +248,7 @@ class PostHistory(keras.callbacks.Callback):
     def on_train_end(self, logs={}):
         self._client.close_session()
 
+
 class PlotLearningRate(keras.callbacks.Callback):
     def __init__(self, save_dir):
         self.save_dir = save_dir

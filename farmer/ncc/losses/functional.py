@@ -59,8 +59,8 @@ def flooding(loss, b=0.02):
 
 def surface_loss(gt, pr):
     gt_dist_map = tf.py_function(func=_calc_dist_map_batch,
-                                     inp=[gt],
-                                     Tout=tf.float32)
+                                 inp=[gt],
+                                 Tout=tf.float32)
     multipled = pr * gt_dist_map
     return tf.reduce_mean(multipled)
 
@@ -71,7 +71,6 @@ def _tp_fp_fn(gt, pr):
     tp = tf.reduce_sum(gt * pr, axis=reduce_axes)
     fp = tf.reduce_sum(pr, axis=reduce_axes) - tp
     fn = tf.reduce_sum(gt, axis=reduce_axes) - tp
-
     return tp, fp, fn
 
 
@@ -98,7 +97,7 @@ def _rvd_index(gt, pr):
     tp, fp, fn = _tp_fp_fn(gt, pr)
     v_label = tp + fn + SMOOTH
     v_infer = tp + fp
-    return abs( (v_infer - v_label) / v_label )
+    return abs((v_infer - v_label) / v_label)
 
 
 def _calc_dist_map(seg):
@@ -117,6 +116,7 @@ def _calc_dist_map_batch(y_true):
     return np.array([_calc_dist_map(y)
                      for y in y_true_numpy]).astype(np.float32)
 
+
 def asymmetric_focal_loss(gt, pr, delta=0.25, gamma=2.):
     """
     Args:
@@ -129,19 +129,20 @@ def asymmetric_focal_loss(gt, pr, delta=0.25, gamma=2.):
     pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
     cross_entropy = -gt * K.log(pr)
 
-    #calculate losses separately for each class, only suppressing background class
-    back_ce = K.pow(1 - pr[:,:,:,0], gamma) * cross_entropy[:,:,:,0]
-    back_ce =  (1 - delta) * back_ce
+    # calculate losses separately for each class, only suppressing background class
+    back_ce = K.pow(1 - pr[:, :, :, 0], gamma) * cross_entropy[:, :, :, 0]
+    back_ce = (1 - delta) * back_ce
     # shape: (, height, width, 1)
     back_ce = tf.expand_dims(back_ce, -1)
 
-    fore_ce = cross_entropy[:,:,:,1:]
+    fore_ce = cross_entropy[:, :, :, 1:]
     # shape: (, height, width, num of foreground classes)
     fore_ce = delta * fore_ce
 
     loss = K.mean(K.sum(tf.concat([back_ce, fore_ce], axis=-1), axis=-1))
 
     return loss
+
 
 def asymmetric_focal_tversky_loss(gt, pr, delta=0.7, gamma=0.75):
     """
@@ -152,19 +153,20 @@ def asymmetric_focal_tversky_loss(gt, pr, delta=0.7, gamma=0.75):
         gamma (float, optional): focal parameter controls degree of down-weighting of easy examples. Defaults to 0.75.
     """
 
-    # Calculate true positives (tp), false negatives (fn) and false positives (fp)     
+    # Calculate true positives (tp), false negatives (fn) and false positives (fp)
     tp, fp, fn = _tp_fp_fn(gt, pr)
-    dice_class = (tp + SMOOTH)/(tp + delta * fn + (1 - delta) * fp + SMOOTH)
+    dice_class = (tp + SMOOTH) / (tp + delta * fn + (1 - delta) * fp + SMOOTH)
 
-    #calculate losses separately for each class, only enhancing foreground class
+    # calculate losses separately for each class, only enhancing foreground class
     back_dice = 1 - dice_class[0]
     back_dice = tf.expand_dims(back_dice, -1)
     fore_dice = (1 - dice_class[1:]) * K.pow(1 - dice_class[1:], -gamma)
-    
+
     # Average class scores
     loss = K.mean(tf.concat([back_dice, fore_dice], 0))
 
     return loss
+
 
 def unified_focal_loss(gt, pr, weight=0.5, delta=0.6, gamma=0.2):
     """The Unified Focal loss is a new compound loss function that unifies Dice-based and cross entropy-based loss functions into a single framework.
@@ -182,9 +184,17 @@ def unified_focal_loss(gt, pr, weight=0.5, delta=0.6, gamma=0.2):
     asymmetric_ftl = asymmetric_focal_tversky_loss(gt, pr, delta=delta, gamma=gamma)
     # Obtain Asymmetric Focal loss
     asymmetric_fl = asymmetric_focal_loss(gt, pr, delta=delta, gamma=gamma)
-    
+
     # return weighted sum of Asymmetrical Focal loss and Asymmetric Focal Tversky loss
     if weight is not None:
-        return (weight * asymmetric_ftl) + ((1-weight) * asymmetric_fl)  
+        return (weight * asymmetric_ftl) + ((1 - weight) * asymmetric_fl)
     else:
         return asymmetric_ftl + asymmetric_fl
+
+
+def maskdice_loss(gt, pr):
+    nb_classes = pr.shape[-1] // 2
+    pr_mask = pr[..., :nb_classes]  # (N,H,W,C)
+    pr_dice = tf.reduce_max(pr[..., nb_classes:], axis=[1, 2])  # (N,C)
+    gt_dice = _f_index(gt, pr_mask)  # (N,C)
+    return tf.keras.losses.mse(gt_dice, pr_dice)

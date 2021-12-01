@@ -118,7 +118,16 @@ class BuildModelTask:
                     input_shape=(height, width, 3),
                     classes=nb_classes,
                     backbone=backbone,
-                    activation=activation
+                    activation=activation,
+                )
+            elif model_name == "deeplab_v3_with_dice_head":
+                model = models.Deeplabv3(
+                    weights_info=weights_info,
+                    input_shape=(height, width, 3),
+                    classes=nb_classes,
+                    backbone=backbone,
+                    activation=activation,
+                    mask_dice_head=True,
                 )
             elif model_name == "pspnet":
                 model = segmentation_models.PSPNet(

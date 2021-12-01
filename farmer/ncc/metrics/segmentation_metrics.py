@@ -8,6 +8,7 @@ import cv2
 import json
 from ..metrics.surface_dice import metrics as surface_distance
 
+
 def calc_segmentation_metrics(confusion):
     tp = np.diag(confusion)
     fp = np.sum(confusion, 0) - tp
@@ -36,9 +37,7 @@ def iou_dice_val(
         batch_size
 ):
     confusion = np.zeros((nb_classes, nb_classes), dtype=np.int32)
-
-    print('\nvalidation...')
-    for i, (image, mask) in enumerate(tqdm(dataset)):
+    for i, (image, mask) in enumerate(tqdm(dataset, desc='validation')):
         if i == 0:
             images = np.zeros((batch_size,) + image.shape, dtype=image.dtype)
             masks = np.zeros((batch_size,) + mask.shape, dtype=mask.dtype)
@@ -49,7 +48,7 @@ def iou_dice_val(
         masks[image_index] = mask
 
         if i == len(dataset) - 1 or image_index == batch_size - 1:
-            output = model.predict(images)
+            output = model.predict(images)[..., :nb_classes]
             for j in range(image_index + 1):
                 confusion += calc_segmentation_confusion(
                     output[j], masks[j], nb_classes)
@@ -229,9 +228,7 @@ def generate_segmentation_result(
     image_dice_list = list()
     dice_list = list()
     surface_dice_list = list()
-    
-    print('\nsave predicted image...')
-    for i, (image, mask) in enumerate(tqdm(dataset)):
+    for i, (image, mask) in enumerate(tqdm(dataset, desc='save predicted image')):
         if i == 0:
             images = np.zeros((batch_size,) + image.shape, dtype=image.dtype)
             masks = np.zeros((batch_size,) + mask.shape, dtype=mask.dtype)
@@ -243,7 +240,7 @@ def generate_segmentation_result(
         masks[image_index] = mask
 
         if i == len(dataset) - 1 or image_index == batch_size - 1:
-            output = model.predict(images)
+            output = model.predict(images)[..., :nb_classes]  # for maskdice head branch
             for j in range(image_index + 1):
                 confusion = calc_segmentation_confusion(
                     output[j], masks[j], nb_classes)
