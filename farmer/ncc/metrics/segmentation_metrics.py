@@ -257,7 +257,7 @@ def generate_segmentation_result(
                 data_index = batch_index * batch_size + j
                 *input_file, _ = dataset.annotations[data_index]
                 image_path = Path(input_file[0])
-                save_image_dir = Path(save_dir) / image_path.parent.name
+                save_image_dir = Path(save_dir) / image_path.parent.parent.name
                 save_image_dir.mkdir(exist_ok=True)
                 save_image_path = str(save_image_dir / image_path.name)
                 image_dice_list.append([save_image_path, dice])
