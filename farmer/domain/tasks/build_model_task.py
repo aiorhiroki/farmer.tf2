@@ -24,7 +24,8 @@ class BuildModelTask:
             height=self.config.height,
             width=self.config.width,
             backbone=self.config.train_params.backbone,
-            activation=self.config.train_params.activation
+            activation=self.config.train_params.activation,
+            freeze=self.config.train_params.freeze,
         )
         model = self._do_load_model_task(
             model, self.config.trained_model_path
@@ -47,7 +48,8 @@ class BuildModelTask:
         width=299,
         height=299,
         backbone="resnet50",
-        activation="softmax"
+        activation="softmax",
+        freeze=False,
     ):
         weights_info = None
         if 'weights' in self.config.train_params.weights_info:
@@ -119,6 +121,8 @@ class BuildModelTask:
                     classes=nb_classes,
                     backbone=backbone,
                     activation=activation,
+                    freeze=freeze,
+                    mask_dice_head=False,
                 )
             elif model_name == "deeplab_v3_with_dice_head":
                 model = models.Deeplabv3(
@@ -127,6 +131,7 @@ class BuildModelTask:
                     classes=nb_classes,
                     backbone=backbone,
                     activation=activation,
+                    freeze=freeze,
                     mask_dice_head=True,
                 )
             elif model_name == "pspnet":

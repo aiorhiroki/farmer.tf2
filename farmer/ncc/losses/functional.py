@@ -65,36 +65,35 @@ def surface_loss(gt, pr):
     return tf.reduce_mean(multipled)
 
 
-def _tp_fp_fn(gt, pr):
+def _tp_fp_fn(gt, pr, reduce_axes):
     pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
-    reduce_axes = [0, 1, 2]
     tp = tf.reduce_sum(gt * pr, axis=reduce_axes)
     fp = tf.reduce_sum(pr, axis=reduce_axes) - tp
     fn = tf.reduce_sum(gt, axis=reduce_axes) - tp
     return tp, fp, fn
 
 
-def _f_index(gt, pr, beta=1):
-    tp, fp, fn = _tp_fp_fn(gt, pr)
+def _f_index(gt, pr, beta=1, axis=[0, 1, 2]):
+    tp, fp, fn = _tp_fp_fn(gt, pr, axis)
     intersection = (1 + beta ** 2) * tp + SMOOTH
     summation = (1 + beta ** 2) * tp + beta ** 2 * fn + fp + SMOOTH
     return intersection / summation
 
 
-def _iou_index(gt, pr):
-    tp, fp, fn = _tp_fp_fn(gt, pr)
+def _iou_index(gt, pr, axis=[0, 1, 2]):
+    tp, fp, fn = _tp_fp_fn(gt, pr, axis)
     intersection = tp + SMOOTH
     union = tp + fn + fp + SMOOTH
     return intersection / union
 
 
-def _tversky_index(gt, pr, alpha, beta):
-    tp, fp, fn = _tp_fp_fn(gt, pr)
+def _tversky_index(gt, pr, alpha, beta, axis=[0, 1, 2]):
+    tp, fp, fn = _tp_fp_fn(gt, pr, axis)
     return (tp + SMOOTH) / (tp + alpha * fp + beta * fn + SMOOTH)
 
 
-def _rvd_index(gt, pr):
-    tp, fp, fn = _tp_fp_fn(gt, pr)
+def _rvd_index(gt, pr, axis=[0, 1, 2]):
+    tp, fp, fn = _tp_fp_fn(gt, pr, axis)
     v_label = tp + fn + SMOOTH
     v_infer = tp + fp
     return abs((v_infer - v_label) / v_label)
@@ -144,7 +143,7 @@ def asymmetric_focal_loss(gt, pr, delta=0.25, gamma=2.):
     return loss
 
 
-def asymmetric_focal_tversky_loss(gt, pr, delta=0.7, gamma=0.75):
+def asymmetric_focal_tversky_loss(gt, pr, delta=0.7, gamma=0.75, axis=[0, 1, 2]):
     """
     Args:
         gt (tensor): groundtruth mask
@@ -154,7 +153,7 @@ def asymmetric_focal_tversky_loss(gt, pr, delta=0.7, gamma=0.75):
     """
 
     # Calculate true positives (tp), false negatives (fn) and false positives (fp)
-    tp, fp, fn = _tp_fp_fn(gt, pr)
+    tp, fp, fn = _tp_fp_fn(gt, pr, axis)
     dice_class = (tp + SMOOTH) / (tp + delta * fn + (1 - delta) * fp + SMOOTH)
 
     # calculate losses separately for each class, only enhancing foreground class
@@ -196,5 +195,5 @@ def maskdice_loss(gt, pr):
     nb_classes = pr.shape[-1] // 2
     pr_mask = pr[..., :nb_classes]  # (N,H,W,C)
     pr_dice = tf.reduce_max(pr[..., nb_classes:], axis=[1, 2])  # (N,C)
-    gt_dice = _f_index(gt, pr_mask)  # (N,C)
-    return tf.keras.losses.mse(gt_dice, pr_dice)
+    gt_dice = _f_index(gt, pr_mask, axis=[1, 2])  # (N,C)
+    return tf.reduce_mean(tf.keras.losses.mse(gt_dice, pr_dice), axis=0)  # (N,)->()

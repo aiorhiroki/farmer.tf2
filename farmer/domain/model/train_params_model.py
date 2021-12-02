@@ -8,6 +8,7 @@ class TrainParams:
     model_name: str = None
     backbone: str = None
     activation: str = "softmax"
+    freeze: bool = False
     loss: Dict[str, dict] = field(default_factory=dict)
     classification_class_weight: Dict[str, float] = field(default_factory=dict)
     batch_size: int = 1

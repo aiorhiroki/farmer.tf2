@@ -54,7 +54,7 @@ WEIGHTS_PATH_MOBILE_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/relea
 
 
 def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
-              OS=16, alpha=1., activation='softmax', mask_dice_head=False):
+              OS=16, alpha=1., activation='softmax', freeze=False, mask_dice_head=False):
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
@@ -157,8 +157,7 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     shape_before = tensorflow.shape(x)
     b4 = GlobalAveragePooling2D()(x)
     # from (b_size, channels)->(b_size, 1, 1, channels)
-    b4 = Lambda(lambda x: tensorflow.keras.backend.expand_dims(x, 1))(b4)
-    b4 = Lambda(lambda x: tensorflow.keras.backend.expand_dims(x, 1))(b4)
+    b4 = Lambda(lambda x: x[:, tensorflow.newaxis, tensorflow.newaxis, :])(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
@@ -275,6 +274,10 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     elif os.path.exists(weights):
         if weights_info.get("task") == 'segmentation':
             model.load_weights(weights)
+            if freeze:
+                print('freeze pretrained model.')
+                for layer in model.layers:
+                    layer.trainable = False
             # re-build to change output number of channels
             x = model.get_layer(index=-4).output  # before `custom_logits_semantic` layer
             x = Conv2D(output_classes, (1, 1), padding='same', name=last_layer_name)(x)
@@ -289,18 +292,18 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
 
     if mask_dice_head:
         # feature extractor
-        encoder_last = model.get_layer(name='dropout_encoder_last').output  # (256, 512, 3) -> (16, 32, 256)
+        encoder_last = model.get_layer(name='dropout_encoder_last').output  # (16, 32, 256)
         # mask predictor
-        segmentation_output = model.get_layer(name=last_layer_name).output  # (256, 512, 3) -> (64, 128, 256)
+        segmentation_output = model.get_layer(name=last_layer_name).output  # (64, 128, 256)
         segmentation_output = Activation(activation)(segmentation_output)
         x = MaxPool2D((4, 4), 4)(segmentation_output)  # (64, 128, 256) -> (16, 32, 256)
         # Dice regression head
-        x = Concatenate()([x, encoder_last])
+        x = Concatenate()([x, encoder_last])  # (16, 32, 256+classes)
         for i in range(3):
             x = Conv2D(256, (3, 3), padding='same', use_bias=False)(x)
             x = BatchNormalization(epsilon=1e-5)(x)
             x = Activation('relu')(x)
-        x = Conv2D(256, (3, 3), 2, padding='same', use_bias=False)(x)
+        x = Conv2D(256, (3, 3), 2, padding='same', use_bias=False)(x)  # (16, 32, 256) -> (8, 16, 256)
         x = BatchNormalization(epsilon=1e-5)(x)
         x = Activation('relu')(x)
         x = Flatten()(x)
@@ -318,8 +321,9 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         x = Lambda(lambda x: x[:, tensorflow.newaxis, tensorflow.newaxis, :])(regression)  # (N,C) -> (N,1,1,C)
         x = Lambda(lambda x: tensorflow.tile(x, tensorflow.constant((1, input_shape[0], input_shape[1], 1))))(x)  # (N,H,W,C)
         # concatenate mask and dice
+        # if get *dice* head, do slice like `output[..., classes:]`
+        # if get *mask* head, do slice like `output[..., :classes]`
         x = Concatenate()([model.output, x])
-        # if get dice head, do slice like `output[..., classes:]`
         model = Model(inputs=model.input, outputs=x, name='deeplabv3plusWithDiceHead')
         print('build DeeplabV3+ with MaskDiceHead for regression dice')
 
