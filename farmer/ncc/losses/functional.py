@@ -194,6 +194,6 @@ def unified_focal_loss(gt, pr, weight=0.5, delta=0.6, gamma=0.2):
 def maskdice_loss(gt, pr):
     nb_classes = pr.shape[-1] // 2
     pr_mask = pr[..., :nb_classes]  # (N,H,W,C)
-    pr_dice = tf.reduce_max(pr[..., nb_classes:], axis=[1, 2])  # (N,C)
+    pr_dice = pr[:, 0, 0, nb_classes:]  # (N,C)
     gt_dice = _f_index(gt, pr_mask, axis=[1, 2])  # (N,C)
     return tf.reduce_mean(tf.keras.losses.mse(gt_dice, pr_dice), axis=0)  # (N,)->()
