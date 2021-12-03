@@ -16,7 +16,7 @@ jobs:
           pip install poetry
           poetry config virtualenvs.create false
           poetry install --no-root
-          python setup.py install
+          python setup.py develop
           cd example
           Godfarmer
 
