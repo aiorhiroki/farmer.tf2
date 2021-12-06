@@ -1,13 +1,23 @@
 target_dir: data/segmentation
 result_root_dir: result/segmentation
-train_dirs:
-    - train_1
-    - train_2
-    - validation
+# train_dirs:
+#     - train_1
+#     - train_2
+#     - validation
+    
+train_dirs:  # type(train_dirs) is dict => custom data increment function
+  dataA:
+    dirs:
+      - train_1
+    split: no
+    total: 20
+  dataB:
+    dirs:
+      - train_2
+    split: yes
+    total: all
+nb_split: 5
 
-# key: cross_val, args: 0,1,2,3,4,all,step
-# all=0->1->2->..., step=0->0+1->0+1+2->...
-cross_val: 0
 
 test_dirs:
     - test
