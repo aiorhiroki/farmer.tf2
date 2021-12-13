@@ -23,7 +23,7 @@ from __future__ import print_function
 
 import os
 
-import tensorflow
+import tensorflow as tf
 
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Input
@@ -154,18 +154,18 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     # branching for Atrous Spatial Pyramid Pooling
 
     # Image Feature branch
-    shape_before = tensorflow.shape(x)
+    shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
     # from (b_size, channels)->(b_size, 1, 1, channels)
-    b4 = Lambda(lambda x: x[:, tensorflow.newaxis, tensorflow.newaxis, :])(b4)
+    b4 = Lambda(lambda x: x[:, tf.newaxis, tf.newaxis, :])(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation('relu')(b4)
     # upsample. have to use compat because of the option align_corners
-    size_before = tensorflow.keras.backend.int_shape(x)
-    b4 = Lambda(lambda x: tensorflow.compat.v1.image.resize(x, size_before[1:3],
-                                                            method='bilinear', align_corners=True))(b4)
+    size_before = tf.keras.backend.int_shape(x)
+    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
+                                                    method='bilinear', align_corners=True))(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -198,11 +198,11 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
-        size_before2 = tensorflow.keras.backend.int_shape(x)
-        x = Lambda(lambda xx: tensorflow.compat.v1.image.resize(xx,
-                                                                size_before2[1:3] *
-                                                                tensorflow.constant(OS // 4),
-                                                                method='bilinear', align_corners=True))(x)
+        size_before2 = tf.keras.backend.int_shape(x)
+        x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
+                                                        size_before2[1:3] *
+                                                        tf.constant(OS // 4),
+                                                        method='bilinear', align_corners=True))(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
@@ -215,17 +215,11 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         x = SepConv_BN(x, 256, 'decoder_conv1',
                        depth_activation=True, epsilon=1e-5)
 
-    # you can use it with arbitary number of classes
-    if (weights == 'pascal_voc' and classes == 21) or (weights == 'cityscapes' and classes == 19):
-        last_layer_name = 'logits_semantic'
-    else:
-        last_layer_name = 'custom_logits_semantic'
-
-    x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
-    size_before3 = tensorflow.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tensorflow.compat.v1.image.resize(xx,
-                                                            size_before3[1:3],
-                                                            method='bilinear', align_corners=True))(x)
+    x = Conv2D(classes, (1, 1), padding='same', name='custom_logits_semantic')(x)
+    size_before3 = tf.keras.backend.int_shape(img_input)
+    x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
+                                                    size_before3[1:3],
+                                                    method='bilinear', align_corners=True))(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -280,10 +274,10 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
                     layer.trainable = False
             # re-build to change output number of channels
             x = model.get_layer(index=-4).output  # before `custom_logits_semantic` layer
-            x = Conv2D(output_classes, (1, 1), padding='same', name=last_layer_name)(x)
-            x = Lambda(lambda xx: tensorflow.compat.v1.image.resize(xx,
-                                                                    size_before3[1:3],
-                                                                    method='bilinear', align_corners=True))(x)
+            x = Conv2D(output_classes, (1, 1), padding='same', name='custom_logits_semantic')(x)
+            x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
+                                                            size_before3[1:3],
+                                                            method='bilinear', align_corners=True))(x)
             if activation in {'softmax', 'sigmoid', 'linear'}:
                 x = Activation(activation)(x)
 
@@ -294,7 +288,7 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         # feature extractor
         encoder_last = model.get_layer(name='dropout_encoder_last').output  # (16, 32, 256)
         # mask predictor
-        segmentation_output = model.get_layer(name=last_layer_name).output  # (64, 128, 256)
+        segmentation_output = model.get_layer(name='custom_logits_semantic').output  # (64, 128, 256)
         segmentation_output = Activation(activation)(segmentation_output)
         x = MaxPool2D((4, 4), 4)(segmentation_output)  # (64, 128, 256) -> (16, 32, 256)
         # Dice regression head
@@ -318,8 +312,8 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         # multiple outputs but calculate one loss because get gt dice between gt mask and pr mask
         # so this is trick to calculate one loss
         # resize shape for matching to mask
-        x = Lambda(lambda x: x[:, tensorflow.newaxis, tensorflow.newaxis, :])(regression)  # (N,C) -> (N,1,1,C)
-        x = Lambda(lambda x: tensorflow.tile(x, tensorflow.constant((1, input_shape[0], input_shape[1], 1))))(x)  # (N,H,W,C)
+        x = Lambda(lambda x: x[:, tf.newaxis, tf.newaxis, :])(regression)  # (N,C) -> (N,1,1,C)
+        x = Lambda(lambda x: tf.tile(x, tf.constant((1, input_shape[0], input_shape[1], 1))))(x)  # (N,H,W,C)
         # concatenate mask and dice
         # if get *dice* head, do slice like `output[..., classes:]`
         # if get *mask* head, do slice like `output[..., :classes]`
