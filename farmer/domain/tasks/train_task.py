@@ -181,12 +181,12 @@ class TrainTask:
         self, model, train_dataset, val_dataset, callbacks
     ):
         if self.config.generator:
-            train_gen = ncc.generators.Dataloder(
+            train_gen = ncc.generators.Dataloader(
                 train_dataset,
                 batch_size=self.config.train_params.batch_size,
                 shuffle=True
             )
-            valid_gen = ncc.generators.Dataloder(
+            valid_gen = ncc.generators.Dataloader(
                 val_dataset,
                 batch_size=self.config.train_params.batch_size,
                 shuffle=False
