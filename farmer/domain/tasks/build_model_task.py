@@ -1,5 +1,5 @@
 import numpy as np
-
+import tensorflow as tf
 import segmentation_models
 
 from farmer.ncc.optimizers import AdaBound
@@ -16,7 +16,6 @@ class BuildModelTask:
 
     def command(self):
         # return: base_model is saved when training on multi gpu
-
         model = self._do_make_model_task(
             task=self.config.task,
             model_name=self.config.train_params.model_name,
@@ -30,14 +29,20 @@ class BuildModelTask:
         model = self._do_load_model_task(
             model, self.config.trained_model_path
         )
-        model = self._do_compile_model_task(
-            model,
+        optimizer = self._do_build_optimizer(
             self.config.train_params.optimizer,
             self.config.train_params.learning_rate,
-            self.config.task,
-            self.config.train_params.loss
         )
-
+        loss = self._do_build_loss(
+            self.config.train_params.loss,
+            self.config.task,
+        )
+        model = self._do_compile_model_task(
+            model,
+            optimizer,
+            loss,
+            self.config.task,
+        )
         return model
 
     def _do_make_model_task(
@@ -125,14 +130,22 @@ class BuildModelTask:
                     mask_dice_head=False,
                 )
             elif model_name == "deeplab_v3_with_dice_head":
-                model = models.Deeplabv3(
+                model = models.Deeplabv3WithDiceHead(
                     weights_info=weights_info,
                     input_shape=(height, width, 3),
                     classes=nb_classes,
                     backbone=backbone,
                     activation=activation,
                     freeze=freeze,
-                    mask_dice_head=True,
+                )
+            elif model_name == "deeplab_v3_with_dice_head_branch":
+                model = models.Deeplabv3WithDiceHeadBranch(
+                    weights_info=weights_info,
+                    input_shape=(height, width, 3),
+                    classes=nb_classes,
+                    backbone=backbone,
+                    activation=activation,
+                    freeze=freeze,
                 )
             elif model_name == "pspnet":
                 model = segmentation_models.PSPNet(
@@ -171,14 +184,7 @@ class BuildModelTask:
             model.load_weights(trained_model_path)
         return model
 
-    def _do_compile_model_task(
-        self,
-        model,
-        optimizer,
-        learning_rate,
-        task_id,
-        loss
-    ):
+    def _do_build_optimizer(self, optimizer, learning_rate):
         if self.config.framework == "tensorflow":
             print('------------------')
             print('Optimizer:', optimizer)
@@ -202,7 +208,6 @@ class BuildModelTask:
                 )
             elif optimizer == "radam":
                 steps_per_epoch = self.config.nb_train_data // self.config.train_params.batch_size
-
                 optimizer = tfa.optimizers.RectifiedAdam(
                     lr=learning_rate,
                     weight_decay=1e-5,
@@ -211,13 +216,12 @@ class BuildModelTask:
                     warmup_proportion=0.1,
                     min_lr=learning_rate * 0.01,
                 )
-
                 # Lookahead
                 # https://arxiv.org/abs/1907.08610v1
                 optimizer = tfa.optimizers.Lookahead(
                     optimizer,
                     sync_period=6,
-                    slow_step_size=0.5
+                    slow_step_size=0.5,
                 )
             else:
                 optimizer = keras.optimizers.SGD(
@@ -226,6 +230,8 @@ class BuildModelTask:
                     decay=self.config.train_params.opt_decay
                 )
 
+    def _do_build_loss(self, loss, task_id):
+        if self.config.framework == "tensorflow":
             loss_funcs = loss["functions"]
             print('------------------')
             print('Loss:', loss_funcs.keys())
@@ -243,7 +249,6 @@ class BuildModelTask:
                             loss += getattr(keras.losses, loss_name)()
                         else:
                             loss += getattr(keras.losses, loss_name)(**params)
-                metrics = ["acc"]
 
             elif task_id == Task.SEMANTIC_SEGMENTATION:
                 for i, loss_func in enumerate(loss_funcs.items()):
@@ -252,14 +257,14 @@ class BuildModelTask:
                         if params.get("class_weights"):
                             params["class_weights"] = list(
                                 params["class_weights"].values())
-                        if ( params.get("alpha") and 
-                            isinstance(params["alpha"], dict) ):
+                        if (params.get("alpha") and
+                                isinstance(params["alpha"], dict)):
                             params["alpha"] = np.array(
-                                list(params["alpha"].values()) )
-                        if ( params.get("beta") and 
-                            isinstance(params["beta"], dict) ):
+                                list(params["alpha"].values()))
+                        if (params.get("beta") and
+                                isinstance(params["beta"], dict)):
                             params["beta"] = np.array(
-                                list(params["beta"].values()) )
+                                list(params["beta"].values()))
                     if i == 0:
                         if params is None:
                             loss = getattr(losses, loss_name)()
@@ -270,12 +275,38 @@ class BuildModelTask:
                             loss += getattr(losses, loss_name)()
                         else:
                             loss += getattr(losses, loss_name)(**params)
+
+    def _do_compile_model_task(
+        self,
+        model,
+        optimizer,
+        loss,
+        task_id,
+    ):
+        if self.config.framework == "tensorflow":
+            if task_id == Task.CLASSIFICATION:
+                metrics = ["acc"]
+            elif task_id == Task.SEMANTIC_SEGMENTATION:
                 metrics = [
                     segmentation_models.metrics.IOUScore(
                         class_indexes=list(range(1, self.config.nb_classes))),
                     segmentation_models.metrics.FScore(
                         class_indexes=list(range(1, self.config.nb_classes)))
-                    ],
+                ],
+            if self.config.train_params.model_name.startswith('deeplab_v3_with_dice_head'):
+                regression_optimizer = self._do_build_optimizer(
+                    self.config.train_params.optimizer,
+                    self.config.train_params.aux_learning_rate,
+                )
+                model.compile(
+                    seg_loss=loss,
+                    seg_optimizer=optimizer,
+                    seg_metrics=segmentation_models.metrics.FScore(class_indexes=list(range(1, self.config.nb_classes))),
+                    regression_loss=tf.losses.MeanSquaredError(),
+                    regression_optimizer=regression_optimizer,
+                    regression_metrics=tf.keras.metrics.MeanAbsoluteError(),
+                )
+            else:
+                model.compile(optimizer, loss, metrics)
 
-            model.compile(optimizer, loss, metrics)
         return model

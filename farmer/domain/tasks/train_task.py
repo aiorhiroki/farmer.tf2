@@ -97,7 +97,8 @@ class TrainTask:
 
         plot_history = ncc.callbacks.PlotHistory(
             learning_path,
-            ['loss', 'acc', 'iou_score', 'f1-score']
+            ['loss', 'acc', 'iou_score', 'f1-score',
+             'seg_loss', 'regression_loss']
         )
 
         plot_learning_rate = ncc.callbacks.PlotLearningRate(learning_path)
@@ -200,7 +201,7 @@ class TrainTask:
             train_ds = tf.data.Dataset.from_tensor_slices((train[0], train[1]))
 
             train_gen = train_ds.shuffle(len(train_dataset)).batch(
-                    self.config.train_params.batch_size
+                self.config.train_params.batch_size
             )
             valid_gen = valid_ds.batch(self.config.train_params.batch_size)
 

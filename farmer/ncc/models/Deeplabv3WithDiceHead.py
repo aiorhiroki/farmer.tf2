@@ -1,4 +1,3 @@
-import os
 import tensorflow as tf
 
 from tensorflow.keras.models import Model
@@ -127,12 +126,17 @@ class Deeplabv3WithDiceHead(tf.keras.Model):
 
         return segmentation, regression
 
-    def compile(self, seg_loss, seg_optimizer, regression_loss, regression_optimizer):
+    def compile(self,
+                seg_loss, seg_optimizer, seg_metrics,
+                regression_loss, regression_optimizer, regression_metrics,
+                **kwargs):
         super().compile()
         self.seg_loss = seg_loss
         self.seg_optimizer = seg_optimizer
+        self.seg_metrics = seg_metrics
         self.regression_loss = regression_loss
         self.regression_optimizer = regression_optimizer
+        self.regression_metrics = regression_metrics
 
     def train_step(self, inputs):
         input_image, gt_mask = inputs
@@ -147,7 +151,14 @@ class Deeplabv3WithDiceHead(tf.keras.Model):
             regression_loss = self.regression_loss(gt_dice, pr_dice)
             loss = seg_loss + regression_loss
 
+        # backward
         grads = tape.gradient(loss, self.trainable_variables)
         self.seg_optimizer.apply_gradients(zip(grads, self.trainable_variables))
+        # calculate metrics
+        seg_metrics = self.seg_metrics(gt_mask, pr_mask)
+        self.add_metric(seg_metrics, name='seg_metrics')
+        regression_metrics = self.regression_metrics(gt_dice, pr_dice)
+        self.add_metric(regression_metrics, name='regression_metrics')
 
-        return {'seg_loss': seg_loss, 'regression_loss': regression_loss}
+        return {'seg_loss': seg_loss, 'regression_loss': regression_loss,
+                'seg_metrics': seg_metrics, 'regression_metrics': regression_metrics}
