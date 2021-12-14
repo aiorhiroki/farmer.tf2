@@ -49,7 +49,7 @@ def iou_dice_val(
 
         if i == len(dataset) - 1 or image_index == batch_size - 1:
             output = model.predict_on_batch(images)
-            if len(output) == 2:
+            if isinstance(output, tuple):
                 output = output[0]
             for j in range(image_index + 1):
                 confusion += calc_segmentation_confusion(
@@ -246,7 +246,7 @@ def generate_segmentation_result(
 
         if i == len(dataset) - 1 or image_index == batch_size - 1:
             output = model.predict_on_batch(images)
-            if len(output) == 2:
+            if isinstance(output, tuple):
                 output = output[0]
             for j in range(image_index + 1):
                 confusion = calc_segmentation_confusion(
