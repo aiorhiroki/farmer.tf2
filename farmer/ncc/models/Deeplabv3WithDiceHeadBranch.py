@@ -162,7 +162,6 @@ class Deeplabv3WithDiceHead(tf.keras.Model):
         with tf.GradientTape() as tape:
             # forward
             pr_mask, _ = self(input_image, training=True)
-            tf.print(pr_mask.shape, _.shape, gt_mask.shape)
             seg_loss = self.seg_loss(gt_mask, pr_mask)
         # backward
         grads = tape.gradient(seg_loss, self.seg_model.trainable_variables)
