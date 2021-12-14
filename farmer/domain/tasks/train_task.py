@@ -94,11 +94,12 @@ class TrainTask:
         # Plot History
         # result_dir/learning/
         learning_path = self.config.learning_path
-
+        log_list = ['loss', 'acc', 'iou_score', 'f1-score']
+        if self.config.train_params.model_name.startswith('deeplab_v3_with_dice_head'):
+            log_list.extend(['seg_loss', 'regression_loss'])
         plot_history = ncc.callbacks.PlotHistory(
             learning_path,
-            ['loss', 'acc', 'iou_score', 'f1-score',
-             'seg_loss', 'regression_loss']
+            log_list
         )
 
         plot_learning_rate = ncc.callbacks.PlotLearningRate(learning_path)
