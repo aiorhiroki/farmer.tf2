@@ -54,7 +54,7 @@ WEIGHTS_PATH_MOBILE_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/relea
 
 
 def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
-              OS=16, alpha=1., activation='softmax', freeze=False, mask_dice_head=False):
+              OS=16, alpha=1., activation='softmax', freeze=False):
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
@@ -283,43 +283,6 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
 
             model = Model(inputs=model.input, outputs=x, name='deeplabv3plus')
             print(f'loaded weights of {weights} and changed output number of classes from {classes} to {output_classes}')
-
-    if mask_dice_head:
-        # feature extractor
-        encoder_last = model.get_layer(name='dropout_encoder_last').output  # (16, 32, 256)
-        # mask predictor
-        segmentation_output = model.get_layer(name='custom_logits_semantic').output  # (64, 128, 256)
-        segmentation_output = Activation(activation)(segmentation_output)
-        x = MaxPool2D((4, 4), 4)(segmentation_output)  # (64, 128, 256) -> (16, 32, 256)
-        # Dice regression head
-        x = Concatenate()([x, encoder_last])  # (16, 32, 256+classes)
-        for i in range(3):
-            x = Conv2D(256, (3, 3), padding='same', use_bias=False)(x)
-            x = BatchNormalization(epsilon=1e-5)(x)
-            x = Activation('relu')(x)
-        x = Conv2D(256, (3, 3), 2, padding='same', use_bias=False)(x)  # (16, 32, 256) -> (8, 16, 256)
-        x = BatchNormalization(epsilon=1e-5)(x)
-        x = Activation('relu')(x)
-        x = Flatten()(x)
-        x = Dense(1024, activation='relu')(x)
-        x = Dropout(0.2)(x)
-        x = Dense(1024, activation='relu')(x)
-        x = Dropout(0.5)(x)
-        # mask dice predictor
-        x = Dense(classes)(x)
-        regression = ReLU(max_value=1, name='mask_dice_head')(x)  # limit from 0 to 1
-
-        # multiple outputs but calculate one loss because get gt dice between gt mask and pr mask
-        # so this is trick to calculate one loss
-        # resize shape for matching to mask
-        x = Lambda(lambda x: x[:, tf.newaxis, tf.newaxis, :])(regression)  # (N,C) -> (N,1,1,C)
-        x = Lambda(lambda x: tf.tile(x, tf.constant((1, input_shape[0], input_shape[1], 1))))(x)  # (N,H,W,C)
-        # concatenate mask and dice
-        # if get *dice* head, do slice like `output[..., classes:]`
-        # if get *mask* head, do slice like `output[..., :classes]`
-        x = Concatenate()([model.output, x])
-        model = Model(inputs=model.input, outputs=x, name='deeplabv3plusWithDiceHead')
-        print('build DeeplabV3+ with MaskDiceHead for regression dice')
 
     return model
 

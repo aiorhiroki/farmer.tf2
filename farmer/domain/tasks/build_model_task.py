@@ -127,7 +127,6 @@ class BuildModelTask:
                     backbone=backbone,
                     activation=activation,
                     freeze=freeze,
-                    mask_dice_head=False,
                 )
             elif model_name == "deeplab_v3_with_dice_head":
                 model = models.Deeplabv3WithDiceHead(
