@@ -229,6 +229,7 @@ class BuildModelTask:
                     momentum=0.9,
                     decay=self.config.train_params.opt_decay
                 )
+        return optimizer
 
     def _do_build_loss(self, loss, task_id):
         if self.config.framework == "tensorflow":
@@ -275,6 +276,8 @@ class BuildModelTask:
                             loss += getattr(losses, loss_name)()
                         else:
                             loss += getattr(losses, loss_name)(**params)
+
+        return loss
 
     def _do_compile_model_task(
         self,
