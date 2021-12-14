@@ -94,10 +94,12 @@ class TrainTask:
         # Plot History
         # result_dir/learning/
         learning_path = self.config.learning_path
-
+        log_list = ['loss', 'acc', 'iou_score', 'f1-score']
+        if self.config.train_params.model_name.startswith('deeplab_v3_with_dice_head'):
+            log_list.extend(['seg_loss', 'regression_loss'])
         plot_history = ncc.callbacks.PlotHistory(
             learning_path,
-            ['loss', 'acc', 'iou_score', 'f1-score']
+            log_list
         )
 
         plot_learning_rate = ncc.callbacks.PlotLearningRate(learning_path)
@@ -181,12 +183,12 @@ class TrainTask:
         self, model, train_dataset, val_dataset, callbacks
     ):
         if self.config.generator:
-            train_gen = ncc.generators.Dataloder(
+            train_gen = ncc.generators.Dataloader(
                 train_dataset,
                 batch_size=self.config.train_params.batch_size,
                 shuffle=True
             )
-            valid_gen = ncc.generators.Dataloder(
+            valid_gen = ncc.generators.Dataloader(
                 val_dataset,
                 batch_size=self.config.train_params.batch_size,
                 shuffle=False
@@ -200,7 +202,7 @@ class TrainTask:
             train_ds = tf.data.Dataset.from_tensor_slices((train[0], train[1]))
 
             train_gen = train_ds.shuffle(len(train_dataset)).batch(
-                    self.config.train_params.batch_size
+                self.config.train_params.batch_size
             )
             valid_gen = valid_ds.batch(self.config.train_params.batch_size)
 

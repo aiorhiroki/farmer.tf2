@@ -99,7 +99,7 @@ class GenerateSampleResult(keras.callbacks.Callback):
             return
 
         save_dir = f"{self.val_save_dir}/epoch_{epoch + 1}"
-        os.mkdir(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
         generate_segmentation_result(
             nb_classes=self.nb_classes,
             dataset=self.valid_dataset,
@@ -247,6 +247,7 @@ class PostHistory(keras.callbacks.Callback):
 
     def on_train_end(self, logs={}):
         self._client.close_session()
+
 
 class PlotLearningRate(keras.callbacks.Callback):
     def __init__(self, save_dir):

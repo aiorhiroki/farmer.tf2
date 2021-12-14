@@ -22,6 +22,8 @@ class SetTrainEnvTask:
         return self.config
 
     def _do_set_random_seed_task(self):
+        os.environ['TF_DETERMINISTIC_OPS'] = 'true'
+        os.environ['TF_CUDNN_DETERMINISTIC'] = 'true'
         seed = self.config.seed
         # set random_seed
         os.environ["PYTHONHASHSEED"] = str(seed)

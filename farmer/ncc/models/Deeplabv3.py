@@ -26,22 +26,20 @@ import os
 import tensorflow as tf
 
 from tensorflow.python.keras.models import Model
-from tensorflow.python.keras import layers
 from tensorflow.python.keras.layers import Input
 from tensorflow.python.keras.layers import Lambda
 from tensorflow.python.keras.layers import Activation
 from tensorflow.python.keras.layers import Concatenate
-from tensorflow.python.keras.layers import Add
 from tensorflow.python.keras.layers import Dropout
 from tensorflow.python.keras.layers import BatchNormalization
 from tensorflow.python.keras.layers import Conv2D
-from tensorflow.python.keras.layers import DepthwiseConv2D
-from tensorflow.python.keras.layers import ZeroPadding2D
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
+from tensorflow.python.keras.layers import MaxPool2D
+from tensorflow.python.keras.layers import Dense
+from tensorflow.python.keras.layers import Flatten
+from tensorflow.python.keras.layers import ReLU
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
 from tensorflow.python.keras.utils.data_utils import get_file
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.activations import relu
 from tensorflow.python.keras.applications.imagenet_utils import preprocess_input
 
 from tensorflow.keras.applications import efficientnet
@@ -56,7 +54,7 @@ WEIGHTS_PATH_MOBILE_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/relea
 
 
 def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
-              OS=16, alpha=1., activation='softmax'):
+              OS=16, alpha=1., activation='softmax', freeze=False):
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
@@ -159,8 +157,7 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
     # from (b_size, channels)->(b_size, 1, 1, channels)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
+    b4 = Lambda(lambda x: x[:, tf.newaxis, tf.newaxis, :])(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
@@ -195,9 +192,9 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
                use_bias=False, name='concat_projection')(x)
     x = BatchNormalization(name='concat_projection_BN', epsilon=1e-5)(x)
     x = Activation('relu')(x)
-    x = Dropout(0.1)(x)
-    # DeepLab v.3+ decoder
+    x = Dropout(0.1, name='dropout_encoder_last')(x)
 
+    # DeepLab v.3+ decoder
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
@@ -218,13 +215,7 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         x = SepConv_BN(x, 256, 'decoder_conv1',
                        depth_activation=True, epsilon=1e-5)
 
-    # you can use it with arbitary number of classes
-    if (weights == 'pascal_voc' and classes == 21) or (weights == 'cityscapes' and classes == 19):
-        last_layer_name = 'logits_semantic'
-    else:
-        last_layer_name = 'custom_logits_semantic'
-
-    x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
+    x = Conv2D(classes, (1, 1), padding='same', name='custom_logits_semantic')(x)
     size_before3 = tf.keras.backend.int_shape(img_input)
     x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
                                                     size_before3[1:3],
@@ -238,7 +229,7 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
         inputs = img_input
 
     if activation in {'softmax', 'sigmoid', 'linear'}:
-        x = Activation(activation)(x)
+        x = Activation(activation, name='last_activation')(x)
 
     model = Model(inputs, x, name='deeplabv3plus')
 
@@ -277,9 +268,13 @@ def Deeplabv3(weights_info={'weights': 'pascal_voc'}, input_tensor=None, input_s
     elif os.path.exists(weights):
         if weights_info.get("task") == 'segmentation':
             model.load_weights(weights)
+            if freeze:
+                print('freeze pretrained model.')
+                for layer in model.layers:
+                    layer.trainable = False
             # re-build to change output number of channels
             x = model.get_layer(index=-4).output  # before `custom_logits_semantic` layer
-            x = Conv2D(output_classes, (1, 1), padding='same', name=last_layer_name)(x)
+            x = Conv2D(output_classes, (1, 1), padding='same', name='custom_logits_semantic')(x)
             x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
                                                             size_before3[1:3],
                                                             method='bilinear', align_corners=True))(x)
