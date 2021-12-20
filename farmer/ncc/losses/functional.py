@@ -188,3 +188,19 @@ def unified_focal_loss(gt, pr, weight=0.5, delta=0.6, gamma=0.2):
         return (weight * asymmetric_ftl) + ((1-weight) * asymmetric_fl)  
     else:
         return asymmetric_ftl + asymmetric_fl
+
+def _tn(gt, pr):
+    pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
+    reduce_axes = [0, 1, 2]
+    tn = tf.reduce_sum((1 - gt) * (1 - pr), axis=reduce_axes)
+
+    return tn
+
+def mcc_loss(gt, pr, class_weights=1.):
+    tp, fp, fn = _tp_fp_fn(gt, pr)
+    tn = _tn(gt, pr)
+    numerator =  (tp * tn - fp * fn)
+    denominator = tf.math.sqrt((tp+fn)*(tp+fn)*(tn+fp)*(tn+fn))
+    
+    loss = (1 - numerator/denominator) * class_weights
+    return tf.reduce_mean(loss)

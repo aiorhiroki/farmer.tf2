@@ -187,4 +187,18 @@ class UnifiedFocalLoss(Loss):
             weight=self.weight,
             delta=self.delta,
             gamma=self.gamma
+            ), self.flooding_level)
+
+class MccLoss(Loss):
+    def __init__(self, class_weights=None, flooding_level=0.):
+        super().__init__(name='mcc_loss')
+        self.class_weights = class_weights if class_weights is not None else 1
+        self.flooding_level = flooding_level
+
+    def __call__(self, gt, pr):
+        return F.flooding(
+            F.mcc_loss(
+            gt=gt,
+            pr=pr,
+            class_weights=self.class_weights
         ), self.flooding_level)
