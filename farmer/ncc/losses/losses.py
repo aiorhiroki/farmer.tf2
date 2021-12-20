@@ -202,3 +202,19 @@ class MccLoss(Loss):
             pr=pr,
             class_weights=self.class_weights
         ), self.flooding_level)
+
+class FocalPhiLoss(Loss):
+    def __init__(self, gamma=1.5, class_weights=None, flooding_level=0.):
+        super().__init__(name='focal_phi_loss')
+        self.gamma = gamma
+        self.class_weights = class_weights if class_weights is not None else 1
+        self.flooding_level = flooding_level
+
+    def __call__(self, gt, pr):
+        return F.flooding(
+            F.focal_phi_loss(
+            gt=gt,
+            pr=pr,
+            gamma=self.gamma,
+            class_weights=self.class_weights
+        ), self.flooding_level)

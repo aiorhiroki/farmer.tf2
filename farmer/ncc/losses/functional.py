@@ -196,11 +196,29 @@ def _tn(gt, pr):
 
     return tn
 
-def mcc_loss(gt, pr, class_weights=1.):
+def _mcc(gt, pr):
     tp, fp, fn = _tp_fp_fn(gt, pr)
     tn = _tn(gt, pr)
     numerator =  (tp * tn - fp * fn)
     denominator = tf.math.sqrt((tp+fn)*(tp+fn)*(tn+fp)*(tn+fn))
     
-    loss = (1 - numerator/denominator) * class_weights
+    return numerator/denominator
+
+def mcc_loss(gt, pr, class_weights=1.):
+    mcc = _mcc(gt, pr)
+    loss = (1 - mcc) * class_weights
+    return tf.reduce_mean(loss)
+
+def focal_phi_loss(gt, pr, gamma=1.5, class_weights=1.):
+    """
+    arXiv: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8073893/pdf/sensors-21-02803.pdf
+
+    Args:
+        gt (tensor): groundtruth mask
+        pr (tensor): prediction mask
+        gamma (float, optional): modulating factor that focus on learning hard negatives. range (0, 3]. Defaults to 1.5.
+        class_weights ([type], optional): class weights to mcc loss. Defaults to 1..
+    """
+    mcc = _mcc(gt, pr)
+    loss = K.pow((1.0 - mcc) * class_weights, gamma)
     return tf.reduce_mean(loss)
