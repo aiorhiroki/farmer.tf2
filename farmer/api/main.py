@@ -14,6 +14,7 @@ from farmer.domain.model import Trainer
 from farmer.domain.workflows.train_workflow import TrainWorkflow
 from farmer.ncc.mlflow_wrapper.mlflow_client_wrapper import MlflowClientWrapper
 
+
 def fit():
     yaml.add_constructor(
         yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
@@ -41,17 +42,20 @@ def fit():
             config.update(secret_config)
         trainer = Trainer(**config)
         val_dirs = trainer.val_dirs
-        
+
         if trainer.mlflow:
-            client = MlflowClientWrapper.create_run(tracking_uri=trainer.tracking_uri,
-                                                    registry_uri=trainer.tracking_uri,
-                                                    experiment_name=trainer.experiment_name,
-                                                    run_name=trainer.run_name,
-                                                    user_name=trainer.user_name)
+            client = MlflowClientWrapper.create_run(
+                tracking_uri=trainer.tracking_uri,
+                registry_uri=trainer.tracking_uri,
+                experiment_name=trainer.experiment_name,
+                run_name=trainer.run_name,
+                user_name=trainer.user_name
+            )
             trainer.artifacts_path = client.get_artifacts_path()
-        
+
         if trainer.training and (val_dirs is None or len(val_dirs) == 0):
             # cross validation
+            assert type(trainer.train_dirs) == list, "train_dirs is not list."
             if trainer.task == Task.SEMANTIC_SEGMENTATION:
                 image_dir = trainer.label_dir
             else:
@@ -67,13 +71,13 @@ def fit():
                     len(glob(f"{image_dir_path}/*.png")) +
                     len(glob(f"{image_dir_path}/*.jpg"))
                 )
-            n_splits = trainer.n_splits
+            crossval_splits = trainer.crossval_splits
             cross_val_dirs = cross_val_split(
-                trainer.train_dirs, train_counts, k=n_splits
+                trainer.train_dirs, train_counts, k=crossval_splits
             )
             print("cross validation dirs: ", cross_val_dirs)
             result_path = trainer.result_path
-            for k in range(n_splits):
+            for k in range(crossval_splits):
                 trainer = Trainer(**deepcopy(config))
                 if type(trainer.cross_val) is int and k != trainer.cross_val:
                     continue
@@ -82,20 +86,20 @@ def fit():
                 trainer.val_dirs = list()
                 if trainer.cross_val == "all":
                     trainer.val_dirs = cross_val_dirs[k]
-                    for val_i in range(n_splits):
+                    for val_i in range(crossval_splits):
                         if val_i == k:
                             continue
                         trainer.train_dirs += cross_val_dirs[val_i]
                 elif trainer.cross_val == "step":
-                    if k >= (n_splits - 1):
+                    if k >= (crossval_splits - 1):
                         continue
-                    for val_i in range(n_splits):
+                    for val_i in range(crossval_splits):
                         if val_i <= k:
                             trainer.val_dirs += cross_val_dirs[val_i]
                         else:
                             trainer.train_dirs += cross_val_dirs[val_i]
                 elif type(trainer.cross_val) is int:
-                    for val_i in range(n_splits):
+                    for val_i in range(crossval_splits):
                         if val_i == k:
                             trainer.val_dirs += cross_val_dirs[k]
                         else:
@@ -179,7 +183,7 @@ def optuna_command(trainer):
     else:
         pruner = getattr(optuna.pruners, trainer.pruner)(**pruner_params)
     study = optuna.create_study(
-        storage=f"sqlite:///optuna_study.db",
+        storage="sqlite:///optuna_study.db",
         load_if_exists=True,
         study_name=trainer.result_path,
         direction='maximize',

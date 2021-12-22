@@ -4,7 +4,7 @@ import json
 import numpy as np
 from glob import glob
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Any
 from farmer import ncc
 from farmer.domain.model.task_model import Task
 
@@ -18,7 +18,7 @@ class ImageLoader:
     input_dir: str = None
     label_dir: str = None
     video_csv: str = None
-    train_dirs: List[str] = field(default_factory=list)
+    train_dirs: Any = None  # dict or list
     val_dirs: List[str] = field(default_factory=list)
     test_dirs: List[str] = field(default_factory=list)
     height: int = None
@@ -102,6 +102,7 @@ class ImageLoader:
                 ]
 
     def _get_train_files(self):
+        assert type(self.train_dirs) == list, "train_dirs is not list."
         IMAGE_EXTENTINS = [".jpg", ".png"]
         train_files = list()
         for image_ex in IMAGE_EXTENTINS:

@@ -23,7 +23,7 @@ class Trainer(Config, ImageLoader):
     nb_test_data: int = 0
     save_pred: bool = True
     segmentation_val_step: int = 3
-    n_splits: int = 5
+    crossval_splits: int = 5
     cross_val: int = 0
     batch_period: int = 100
     early_stopping: bool = False
@@ -74,8 +74,6 @@ class Trainer(Config, ImageLoader):
                 self.trained_model_path = os.path.join(
                     self.trained_path, "model/last_model.h5"
                 )
-        if self.n_splits > len(self.train_dirs):
-            self.n_splits = len(self.train_dirs)
         self.result_path = os.path.join(
             self.root_dir, self.result_root_dir, self.result_dir)
         if os.path.exists(self.result_path) and not self.overwrite:
@@ -87,13 +85,17 @@ class Trainer(Config, ImageLoader):
         self.video_path = os.path.join(self.result_path, self.video_dir)
         self.tfboard_path = os.path.join(self.result_path, self.tfboard_dir)
         self.get_train_dirs()
-        self.train_dirs = [str(train_dir) for train_dir in self.train_dirs]
+        if type(self.train_dirs) == list:
+            self.train_dirs = [str(train_dir) for train_dir in self.train_dirs]
         self.val_dirs = [str(val_dir) for val_dir in self.val_dirs if val_dir]
         self.test_dirs = [str(test_dir) for test_dir in self.test_dirs]
         self.class_names = self.get_class_names()
         self.get_mean_std()
         self.nb_classes = len(self.class_names)
         self.height, self.width = self.get_image_shape()
+        if len(self.val_dirs) == 0:
+            if self.crossval_splits > len(self.train_dirs):
+                self.crossval_splits = len(self.train_dirs)
 
         # For optuna analysis hyperparameter
         def _check_need_optuna(train_params: dict):
