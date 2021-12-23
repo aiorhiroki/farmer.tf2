@@ -144,10 +144,8 @@ class SlackLogger(keras.callbacks.Callback):
 
 
 class PlotHistory(keras.callbacks.Callback):
-    def __init__(self, save_dir, metrics):
-        self.save_dir = save_dir
-        self.metrics = metrics
-        self.plot_manager = MatPlotManager(self.save_dir)
+    def __init__(self, save_dir):
+        self.plot_manager = MatPlotManager(save_dir)
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch == 0:
