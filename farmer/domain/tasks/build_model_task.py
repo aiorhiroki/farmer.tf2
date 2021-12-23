@@ -256,12 +256,20 @@ class BuildModelTask:
                             loss += getattr(losses, loss_name)()
                         else:
                             loss += getattr(losses, loss_name)(**params)
-                metrics = [
-                    segmentation_models.metrics.IOUScore(
-                        class_indexes=list(range(1, self.config.nb_classes))),
-                    segmentation_models.metrics.FScore(
-                        class_indexes=list(range(1, self.config.nb_classes)))
-                    ],
+                metrics = list()
+                for class_id in range(self.config.nb_classes):
+                    metrics += [
+                        segmentation_models.metrics.IOUScore(
+                            class_indexes=class_id,
+                            name=f"iou-{self.config.class_names[class_id]}",
+                        )
+                    ]
+                    metrics += [
+                        segmentation_models.metrics.FScore(
+                            class_indexes=class_id,
+                            name=f"dice-{self.config.class_names[class_id]}",
+                        )
+                    ]
 
             model.compile(optimizer, loss, metrics)
         return model
