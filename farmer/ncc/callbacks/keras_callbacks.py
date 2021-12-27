@@ -5,9 +5,79 @@ import csv
 import warnings
 from ..utils import PostClient, MatPlotManager
 from ..metrics import iou_dice_val, generate_segmentation_result
-
+from ..callbacks import functional as F
 from tensorflow import keras
+import segmentation_models
+import tensorflow as tf
 
+class LossParamScheduler(keras.callbacks.Callback):
+    def __init__(self, model, loss_name, schedule_target):
+        """
+        callback to schedule loss params
+
+        Args:
+            model (Model): model instance
+            loss_name (str): loss name (Loss.__name__) to schedule params. 
+            schedule_target (dict): target param name and schedule settings.
+                e.g.
+                    {
+                        'param_name': {
+                            'schedule_fn': 'linear',
+                            'params' {
+                                'delta': -0.01,
+                                'min': 0.01
+                            }
+                        }, ... # other params
+                    }
+        """
+        super(LossParamScheduler, self).__init__()
+        self.loss_name = loss_name
+        self.scheduler = list()
+
+        self.loss = self.loss_instance(model)
+
+        # set self.scheduler
+        for param_name, scheduler in schedule_target.items():
+            if hasattr(self.loss, param_name):
+                update_fn = getattr(F, scheduler['schedule_fn'])
+                self.scheduler.append((param_name, update_fn, scheduler['params']))
+            else:
+                print(f'{self.loss.__name__} does not have attribute: {param_name}')
+                raise NotImplementedError
+    
+    def loss_instance(self, model):
+        # compound loss
+        if type(model.loss) is segmentation_models.base.objects.SumOfLosses:
+            if model.loss.l1.__name__ == self.loss_name:
+                cls = model.loss.l1
+            elif model.loss.l2.__name__ == self.loss_name:
+                cls = model.loss.l2
+            else:
+                print(f'not compiled loss: {self.loss_name}')
+                raise NotImplementedError
+        # single loss
+        else:
+            if model.loss.__name__ == self.loss_name:
+                cls = model.loss
+            else:
+                print(f'not compiled loss: {self.loss_name}')
+                raise NotImplementedError
+        return cls
+    
+    def on_epoch_end(self, epoch, logs={}):
+        
+        for (param_name, update_fn, update_fn_params) in self.scheduler:
+            current_param = getattr(self.loss, param_name)
+            
+            # apply update function
+            updated, update_param = update_fn(current_param, epoch, **update_fn_params)
+            
+            # set update value to param of loss instance
+            if updated:
+                keras.backend.set_value(current_param, keras.backend.get_value(update_param))
+                tf.print(f'update loss parameter: {self.loss_name}.{param_name}: {update_param}')
+            else:
+                tf.print(f'loss parameter ({self.loss_name}.{param_name}) does not change.')
 
 class BatchCheckpoint(keras.callbacks.Callback):
     # n batchごとに、モデルのsave & trainのaccとlossをcsvと画像で保存してslackに通知する
