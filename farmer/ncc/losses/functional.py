@@ -200,7 +200,7 @@ def _mcc(gt, pr):
     tp, fp, fn = _tp_fp_fn(gt, pr)
     tn = _tn(gt, pr)
     numerator =  (tp * tn - fp * fn)
-    denominator = tf.math.sqrt((tp+fn)*(tp+fn)*(tn+fp)*(tn+fn))
+    denominator = tf.math.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
     
     return numerator/denominator
 
