@@ -5,10 +5,55 @@ import csv
 import warnings
 from ..utils import PostClient, MatPlotManager
 from ..metrics import iou_dice_val, generate_segmentation_result
+from ..losses import CompoundLoss
 from ..callbacks import functional as F
 from tensorflow import keras
-import segmentation_models
 import tensorflow as tf
+
+class LossWeightsScheduler(keras.callbacks.Callback):
+    def __init__(self, model, schedulers):
+        """
+        callback to schedule loss weights
+
+        Args:
+            model (Model): model instance
+            schedulers (dict): target param name and schedule settings.
+                e.g.
+                    {
+                        'l1' : { # config of first loss
+                            'schedule_fn': 'linear',
+                            'params' {
+                                'delta': -0.01,
+                                'min': 0.01
+                            }
+                        },
+                        'l2' : {...} # config of second loss
+                    }
+        """
+        super(LossWeightsScheduler, self).__init__()
+        self.scheduler = list()
+        
+        for loss_index, scheduler in schedulers.items():
+            if hasattr(model.loss, f'w_{loss_index}'):
+                update_fn = getattr(F, scheduler['schedule_fn'])
+                self.scheduler.append((f'w_{loss_index}', update_fn, scheduler['params']))
+            else:
+                print(f'{model.loss.__name__} does not have attribute: w_{loss_index}. Loss must be <losses.CompoundLoss>')
+                raise AttributeError
+
+    def on_epoch_end(self, epoch, logs={}):
+        for (param_name, update_fn, update_fn_params) in self.scheduler:
+            current_param = getattr(self.model.loss, param_name)
+            
+            # apply update function
+            updated, update_param = update_fn(current_param, epoch, **update_fn_params)
+            
+            # set update value to loss weight(w_l1 or w_l2)
+            if updated:
+                keras.backend.set_value(current_param, keras.backend.get_value(update_param))
+                tf.print(f'update loss weight: CompoundLoss.{param_name}: {update_param}')
+            else:
+                tf.print(f'CompoundLoss.{param_name} does not change.')
 
 class LossParamScheduler(keras.callbacks.Callback):
     def __init__(self, model, loss_name, schedule_target):
@@ -43,11 +88,11 @@ class LossParamScheduler(keras.callbacks.Callback):
                 self.scheduler.append((param_name, update_fn, scheduler['params']))
             else:
                 print(f'{self.loss.__name__} does not have attribute: {param_name}')
-                raise NotImplementedError
+                raise AttributeError
     
     def loss_instance(self, model):
         # compound loss
-        if type(model.loss) is segmentation_models.base.objects.SumOfLosses:
+        if isinstance(model.loss, CompoundLoss):
             if model.loss.l1.__name__ == self.loss_name:
                 cls = model.loss.l1
             elif model.loss.l2.__name__ == self.loss_name:

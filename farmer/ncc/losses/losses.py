@@ -6,6 +6,17 @@ from ..losses import functional as F
 
 segmentation_models.set_framework('tf.keras')
 
+class CompoundLoss(Loss):
+    def __init__(self, l1, l2, w_l1=1., w_l2=1.):
+        name = '{}_plus_{}'.format(l1.__name__, l2.__name__)
+        super().__init__(name=name)
+        self.l1 = l1
+        self.l2 = l2
+        self.w_l1 = tf.Variable(w_l1, dtype=tf.float32)
+        self.w_l2 = tf.Variable(w_l2, dtype=tf.float32)
+
+    def __call__(self, gt, pr):
+        return self.w_l1 * self.l1(gt, pr) + self.w_l2 * self.l2(gt, pr)
 
 class DiceLoss(Loss):
     def __init__(self, beta=1, class_weights=None, flooding_level=0.):

@@ -182,7 +182,13 @@ class TrainTask:
         if loss_param_scheduler:
             for loss_name, target in loss_param_scheduler.items():
                 callbacks.append(keras_callbacks.LossParamScheduler(base_model, loss_name, target))
-            
+        
+        # Loss Weights Scheduler
+        loss_weights_scheduler = self.config.train_params.loss.get('loss_weights_scheduler', dict())
+        
+        if loss_weights_scheduler:
+            callbacks.append(keras_callbacks.LossWeightsScheduler(base_model, loss_weights_scheduler))
+        
         return callbacks
 
     def _do_model_optimization_task(
