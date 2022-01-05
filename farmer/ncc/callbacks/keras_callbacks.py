@@ -38,8 +38,7 @@ class LossWeightsScheduler(keras.callbacks.Callback):
                 update_fn = getattr(F, scheduler['schedule_fn'])
                 self.scheduler.append((f'w_{loss_index}', update_fn, scheduler['params']))
             else:
-                print(f'{model.loss.__name__} does not have attribute: w_{loss_index}. Loss must be <losses.CompoundLoss>')
-                raise AttributeError
+                raise AttributeError(f'{model.loss.__name__} does not have attribute: w_{loss_index}. Loss must be <losses.CompoundLoss>')
 
     def on_epoch_end(self, epoch, logs={}):
         for (param_name, update_fn, update_fn_params) in self.scheduler:
@@ -87,8 +86,7 @@ class LossParamScheduler(keras.callbacks.Callback):
                 update_fn = getattr(F, scheduler['schedule_fn'])
                 self.scheduler.append((param_name, update_fn, scheduler['params']))
             else:
-                print(f'{self.loss.__name__} does not have attribute: {param_name}')
-                raise AttributeError
+                raise AttributeError(f'{self.loss.__name__} does not have attribute: {param_name}')
     
     def loss_instance(self, model):
         # compound loss
@@ -98,15 +96,13 @@ class LossParamScheduler(keras.callbacks.Callback):
             elif model.loss.l2.__name__ == self.loss_name:
                 cls = model.loss.l2
             else:
-                print(f'not compiled loss: {self.loss_name}')
-                raise NotImplementedError
+                raise NotImplementedError(f'not compiled loss: {self.loss_name}')
         # single loss
         else:
             if model.loss.__name__ == self.loss_name:
                 cls = model.loss
             else:
-                print(f'not compiled loss: {self.loss_name}')
-                raise NotImplementedError
+                raise NotImplementedError(f'not compiled loss: {self.loss_name}')
         return cls
     
     def on_epoch_end(self, epoch, logs={}):
