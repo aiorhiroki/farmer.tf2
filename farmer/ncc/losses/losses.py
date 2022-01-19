@@ -188,3 +188,20 @@ class UnifiedFocalLoss(Loss):
             delta=self.delta,
             gamma=self.gamma
         ), self.flooding_level)
+
+class ActiveContourLoss(Loss):
+    def __init__(self, w_region=1.0, w_region_in=1.0, w_region_out=1.0, flooding_level=0.):
+        super().__init__(name='active_contour_loss')
+        self.w_region = tf.Variable(w_region, dtype=tf.float32) # lambda in the paper
+        self.w_region_in = tf.Variable(w_region_in, dtype=tf.float32)
+        self.w_region_out = tf.Variable(w_region_out, dtype=tf.float32)
+        self.flooding_level = tf.Variable(flooding_level, dtype=tf.float32)
+    
+    def __call__(self, gt, pr):
+        return F.flooding(F.active_contour_loss(
+            gt=gt,
+            pr=pr,
+            w_region=self.w_region,
+            w_region_in=self.w_region_in,
+            w_region_out=self.w_region_out
+        ), self.flooding_level)
