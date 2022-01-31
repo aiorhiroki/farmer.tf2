@@ -5,7 +5,6 @@ test_dirs:
 training: no
 task: segmentation
 
-
 train_params: 
     model_name: deeplab_v3
     backbone: mobilenetv2
@@ -21,6 +20,10 @@ train_params:
         classes: # assign only when you use backbone weights
         weights: # pascal_voc, cityscapes, or your model path(*.h5)
     augmentation: no
+
+isolated_fp_weights:
+  0: 15.0
+  1: 15.0
 
 epochs: 2
 width: 512

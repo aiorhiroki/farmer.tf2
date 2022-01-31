@@ -33,7 +33,8 @@ class PredictSegmentationTask:
             model=model,
             save_dir=save_dir,
             batch_size=self.config.train_params.batch_size,
-            sdice_tolerance=self.config.sdice_tolerance
+            sdice_tolerance=self.config.sdice_tolerance,
+            isolated_fp_weights=self.config.isolated_fp_weights,
         )
         return eval_report
 

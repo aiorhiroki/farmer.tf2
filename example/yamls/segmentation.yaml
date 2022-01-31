@@ -95,7 +95,12 @@ train_params:
             MotionBlur:
                 p: 1  # percentage of function inside 'OneOf'
             p: 1  # percetage of 'OneOf'
-    augmix: yes            
+    augmix: yes
+
+isolated_fp_weights:
+  0: 15.0
+  1: 15.0
+
 epochs: 5
 segmentation_val_step: 1
 n_trials: 1
