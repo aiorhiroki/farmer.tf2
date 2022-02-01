@@ -100,6 +100,8 @@ train_params:
 isolated_fp_weights:
   0: 15.0
   1: 15.0
+  2: 15.0
+  3: 15.0
 
 epochs: 5
 segmentation_val_step: 1

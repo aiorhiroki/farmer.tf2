@@ -21,9 +21,7 @@ train_params:
         weights: # pascal_voc, cityscapes, or your model path(*.h5)
     augmentation: no
 
-isolated_fp_weights:
-  0: 15.0
-  1: 15.0
+isolated_fp_weights: 15.0
 
 epochs: 2
 width: 512

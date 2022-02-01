@@ -195,7 +195,8 @@ class GenerateSampleResult(keras.callbacks.Callback):
         nb_classes,
         batch_size,
         segmentation_val_step=3,
-        sdice_tolerance=0.0
+        sdice_tolerance=0.0,
+        isolated_fp_weights=None,
     ):
         self.val_save_dir = val_save_dir
         self.valid_dataset = valid_dataset
@@ -203,6 +204,7 @@ class GenerateSampleResult(keras.callbacks.Callback):
         self.segmentation_val_step = segmentation_val_step
         self.batch_size = batch_size
         self.sdice_tolerance = sdice_tolerance
+        self.isolated_fp_weights = isolated_fp_weights
 
     def on_epoch_end(self, epoch, logs={}):
         # display sample predict
@@ -217,7 +219,8 @@ class GenerateSampleResult(keras.callbacks.Callback):
             model=self.model,
             save_dir=save_dir,
             batch_size=self.batch_size,
-            sdice_tolerance=self.sdice_tolerance
+            sdice_tolerance=self.sdice_tolerance,
+            isolated_fp_weights=self.isolated_fp_weights,
         )
 
 
