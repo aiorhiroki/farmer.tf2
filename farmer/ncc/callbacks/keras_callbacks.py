@@ -196,7 +196,7 @@ class GenerateSampleResult(keras.callbacks.Callback):
         batch_size,
         segmentation_val_step=3,
         sdice_tolerance=0.0,
-        isolated_fp_weights=None,
+        isolated_fp_weights=15.0,
     ):
         self.val_save_dir = val_save_dir
         self.valid_dataset = valid_dataset

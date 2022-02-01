@@ -221,21 +221,19 @@ def calc_surface_dice(pred_out, gt_label, nb_classes, vertical=1.0, horizontal=1
     return class_surface_dice
 
 
-def calc_weighted_dice(confusion, isolated_fp, nb_classes, isolated_fp_weights=None):
+def calc_weighted_dice(confusion, isolated_fp, nb_classes, isolated_fp_weights=15.0):
     """
     weighted dice calculation
 
     Args:
         confusion (np.array): confusion matrix.
         isolated_fp (np.array): isolated fp for each class.
-        isolated_fp_weight (dict): isolated fp weights for each class. Defaults to 15.0.
+        isolated_fp_weight (dict or float): isolated fp weights for each class. Defaults to 15.0.
 
     Returns:
         weighted_dice (np.array)
     """
-    if isolated_fp_weights is None:
-        isolated_fp_weights = {i: 15.0 for i in range(nb_classes)}
-    elif isinstance(isolated_fp_weights, float):
+    if isinstance(isolated_fp_weights, float):
         isolated_fp_weights = {i: isolated_fp_weights for i in range(nb_classes)}
     assert isinstance(isolated_fp_weights, dict)
 
@@ -243,10 +241,10 @@ def calc_weighted_dice(confusion, isolated_fp, nb_classes, isolated_fp_weights=N
     isolated_fp_weights = np.asarray([v for _, v in sorted_weights])
 
     tp = np.diag(confusion)
-    fp = np.sum(confusion, 0) - tp
+    non_isolated_fp = np.sum(confusion, 0) - tp - isolated_fp
     fn = np.sum(confusion, 1) - tp
 
-    class_w_dice = 2 * tp / (2 * tp + fn + fp + (isolated_fp_weights - 1) * isolated_fp)
+    class_w_dice = 2 * tp / (2 * tp + fn + non_isolated_fp + isolated_fp_weights * isolated_fp)
     return class_w_dice
 
 

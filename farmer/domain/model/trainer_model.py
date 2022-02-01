@@ -40,7 +40,7 @@ class Trainer(Config, ImageLoader):
     pruner: str = "MedianPruner"
     pruner_params: dict = None
     sdice_tolerance: float = 0.0
-    isolated_fp_weights: dict = None
+    isolated_fp_weights: float = 15.0
     mlflow: bool = False
     experiment_name: str = None
     run_name: str = None
