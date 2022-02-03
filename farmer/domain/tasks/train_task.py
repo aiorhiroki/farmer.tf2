@@ -4,6 +4,7 @@ from tensorflow import keras
 import tensorflow as tf
 from farmer import ncc
 from farmer.ncc import schedulers
+from farmer.ncc.callbacks import keras_callbacks
 from optuna.integration import TFKerasPruningCallback
 
 
@@ -155,6 +156,19 @@ class TrainTask:
             )
             callbacks.append(early_stopping)
 
+        # Loss Param Scheduler
+        loss_param_scheduler = self.config.train_params.loss.get('param_scheduler')
+        
+        if loss_param_scheduler:
+            for loss_name, target in loss_param_scheduler.items():
+                callbacks.append(keras_callbacks.LossParamScheduler(base_model, loss_name, target))
+        
+        # Loss Weights Scheduler
+        loss_weights_scheduler = self.config.train_params.loss.get('loss_weights_scheduler', dict())
+        
+        if loss_weights_scheduler:
+            callbacks.append(keras_callbacks.LossWeightsScheduler(base_model, loss_weights_scheduler))
+        
         return callbacks
 
     def _do_model_optimization_task(
