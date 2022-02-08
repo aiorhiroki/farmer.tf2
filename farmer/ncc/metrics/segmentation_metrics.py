@@ -203,16 +203,12 @@ def calc_surface_dice(pred_out, gt_label, nb_classes, vertical=1.0, horizontal=1
         gt_mask = np.asarray(gt_mask, dtype=np.bool)
         pred_mask = np.asarray(pred_mask, dtype=np.bool)
         
-        # if both masks are empty, the result is NaN.
-        if (np.sum(gt_mask==True) == 0) & (np.sum(pred_mask==True) == 0):
-            surface_dice = 0.0
-        else:        
-            surface_distances = surface_distance.compute_surface_distances(
-                gt_mask,
-                pred_mask,
-                spacing_mm=(vertical, horizontal))
-            surface_dice = surface_distance.compute_surface_dice_at_tolerance(surface_distances, tolerance_mm=tolerance)
-        
+        surface_distances = surface_distance.compute_surface_distances(
+            gt_mask,
+            pred_mask,
+            spacing_mm=(vertical, horizontal))
+        surface_dice = surface_distance.compute_surface_dice_at_tolerance(surface_distances, tolerance_mm=tolerance)
+    
         class_surface_dice.append(surface_dice)
     
     return class_surface_dice

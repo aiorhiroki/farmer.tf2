@@ -418,8 +418,9 @@ def compute_surface_dice_at_tolerance(surface_distances, tolerance_mm):
   surfel_areas_pred = surface_distances["surfel_areas_pred"]
   overlap_gt = np.sum(surfel_areas_gt[distances_gt_to_pred <= tolerance_mm])
   overlap_pred = np.sum(surfel_areas_pred[distances_pred_to_gt <= tolerance_mm])
-  surface_dice = (overlap_gt + overlap_pred) / (
-      np.sum(surfel_areas_gt) + np.sum(surfel_areas_pred))
+  # +1 to avoid Nan
+  surface_dice = (overlap_gt + overlap_pred + 1) / (
+      np.sum(surfel_areas_gt) + np.sum(surfel_areas_pred) + 1)
   return surface_dice
 
 
