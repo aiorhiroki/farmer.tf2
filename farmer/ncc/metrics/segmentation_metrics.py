@@ -241,10 +241,10 @@ def calc_weighted_dice(confusion, isolated_fp, nb_classes, isolated_fp_weights=1
     isolated_fp_weights = np.asarray([v for _, v in sorted_weights])
 
     tp = np.diag(confusion)
-    non_isolated_fp = np.sum(confusion, 0) - tp - isolated_fp
+    connected_fp = np.sum(confusion, 0) - tp - isolated_fp
     fn = np.sum(confusion, 1) - tp
 
-    class_w_dice = 2 * tp / (2 * tp + fn + non_isolated_fp + isolated_fp_weights * isolated_fp)
+    class_w_dice = 2 * tp / (2 * tp + fn + connected_fp + isolated_fp_weights * isolated_fp)
     return class_w_dice
 
 
