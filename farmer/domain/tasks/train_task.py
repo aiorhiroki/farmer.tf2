@@ -124,7 +124,8 @@ class TrainTask:
                 nb_classes=self.config.nb_classes,
                 batch_size=self.config.train_params.batch_size,
                 segmentation_val_step=self.config.segmentation_val_step,
-                sdice_tolerance=self.config.sdice_tolerance
+                sdice_tolerance=self.config.sdice_tolerance,
+                isolated_fp_weights=self.config.isolated_fp_weights,
             )
             callbacks.extend([iou_history, generate_sample_result])
 

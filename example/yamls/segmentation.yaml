@@ -95,7 +95,14 @@ train_params:
             MotionBlur:
                 p: 1  # percentage of function inside 'OneOf'
             p: 1  # percetage of 'OneOf'
-    augmix: yes            
+    augmix: yes
+
+isolated_fp_weights:    # float or dict. If you want to change weights for each class, you set dict that key is class id.
+  0: 15.0
+  1: 10.0
+  2: 1.0
+  3: 5.0
+
 epochs: 5
 segmentation_val_step: 1
 n_trials: 1
