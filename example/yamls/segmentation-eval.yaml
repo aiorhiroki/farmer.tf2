@@ -5,7 +5,6 @@ test_dirs:
 training: no
 task: segmentation
 
-
 train_params: 
     model_name: deeplab_v3
     backbone: mobilenetv2
@@ -21,6 +20,8 @@ train_params:
         classes: # assign only when you use backbone weights
         weights: # pascal_voc, cityscapes, or your model path(*.h5)
     augmentation: no
+
+isolated_fp_weights: 15.0   # float or dict. If you want to change weights for each class, you set dict that key is class id.
 
 epochs: 2
 width: 512

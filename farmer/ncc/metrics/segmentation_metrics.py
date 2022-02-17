@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import cv2
 import json
 from ..metrics.surface_dice import metrics as surface_distance
+from ..metrics.functional import calc_isolated_fp
 
 def calc_segmentation_metrics(confusion):
     tp = np.diag(confusion)
@@ -137,6 +138,7 @@ def detection_rate_confusions(pred_labels, gt_labels, nb_classes):
 
     return confusion_tabel
 
+
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
                           title='Confusion matrix',
@@ -174,6 +176,7 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.savefig('{}.png'.format(save_file))
 
+
 def calc_surface_dice(pred_out, gt_label, nb_classes, vertical=1.0, horizontal=1.0, tolerance=0.0):
     """
     surface dice calculation
@@ -203,19 +206,43 @@ def calc_surface_dice(pred_out, gt_label, nb_classes, vertical=1.0, horizontal=1
         gt_mask = np.asarray(gt_mask, dtype=np.bool)
         pred_mask = np.asarray(pred_mask, dtype=np.bool)
         
-        # if both masks are empty, the result is NaN.
-        if (np.sum(gt_mask==True) == 0) & (np.sum(pred_mask==True) == 0):
-            surface_dice = 0.0
-        else:        
-            surface_distances = surface_distance.compute_surface_distances(
-                gt_mask,
-                pred_mask,
-                spacing_mm=(vertical, horizontal))
-            surface_dice = surface_distance.compute_surface_dice_at_tolerance(surface_distances, tolerance_mm=tolerance)
-        
+        surface_distances = surface_distance.compute_surface_distances(
+            gt_mask,
+            pred_mask,
+            spacing_mm=(vertical, horizontal))
+        surface_dice = surface_distance.compute_surface_dice_at_tolerance(surface_distances, tolerance_mm=tolerance)
+    
         class_surface_dice.append(surface_dice)
     
     return class_surface_dice
+
+
+def calc_weighted_dice(confusion, isolated_fp, nb_classes, isolated_fp_weights=15.0):
+    """
+    weighted dice calculation
+
+    Args:
+        confusion (np.array): confusion matrix.
+        isolated_fp (np.array): isolated fp for each class.
+        isolated_fp_weight (dict or float): isolated fp weights for each class. Defaults to 15.0.
+
+    Returns:
+        weighted_dice (np.array)
+    """
+    if isinstance(isolated_fp_weights, float):
+        isolated_fp_weights = {i: isolated_fp_weights for i in range(nb_classes)}
+    assert isinstance(isolated_fp_weights, dict)
+
+    sorted_weights = sorted(isolated_fp_weights.items(), key=lambda x: x[0])
+    isolated_fp_weights = np.asarray([v for _, v in sorted_weights])
+
+    tp = np.diag(confusion)
+    connected_fp = np.sum(confusion, 0) - tp - isolated_fp
+    fn = np.sum(confusion, 1) - tp
+
+    class_w_dice = 2 * tp / (2 * tp + fn + connected_fp + isolated_fp_weights * isolated_fp)
+    return class_w_dice
+
 
 def generate_segmentation_result(
     nb_classes,
@@ -223,12 +250,14 @@ def generate_segmentation_result(
     model,
     save_dir,
     batch_size,
-    sdice_tolerance
+    sdice_tolerance,
+    isolated_fp_weights
 ):
     confusion_all = np.zeros((nb_classes, nb_classes), dtype=np.int32)
     image_dice_list = list()
     dice_list = list()
     surface_dice_list = list()
+    isolated_fp_all = np.zeros(nb_classes, dtype=np.int32)
     
     print('\nsave predicted image...')
     for i, (image, mask) in enumerate(tqdm(dataset)):
@@ -250,10 +279,15 @@ def generate_segmentation_result(
                 metrics = calc_segmentation_metrics(confusion)
                 dice = metrics['dice']
                 surface_dice = calc_surface_dice(output[j], masks[j], nb_classes, tolerance=sdice_tolerance)
+                isolated_fp = calc_isolated_fp(output[j], masks[j], nb_classes)
+                weighted_dice = calc_weighted_dice(
+                    confusion, isolated_fp, nb_classes, isolated_fp_weights=isolated_fp_weights)
                 
                 result_image = get_imageset(
                     images[j], output[j], masks[j],
-                    put_text=f'dice: {np.round(dice, 3)}    surface dice: {np.round(surface_dice, 3)}')
+                    put_text = f'dice: {np.round(dice, 3)} ' \
+                    f'surface dice: {np.round(surface_dice, 3)} ' \
+                    f'weighted dice: {np.round(weighted_dice, 3)}')
                 data_index = batch_index * batch_size + j
                 *input_file, _ = dataset.annotations[data_index]
                 image_path = Path(input_file[0])
@@ -268,6 +302,7 @@ def generate_segmentation_result(
                 cv2.imwrite(save_image_path, result_image_out)
 
                 confusion_all += confusion
+                isolated_fp_all += isolated_fp
 
             images[:] = 0
             masks[:] = 0
@@ -285,8 +320,10 @@ def generate_segmentation_result(
         plt.savefig(f"{save_dir}/dice_hist_class_{i}.png")
 
     metrics = calc_segmentation_metrics(confusion_all)
-    # append surface_dice to metrics
+    # append surface_dice and weighted_dice to metrics
     mean_surface_dice = np.mean(list(map(lambda x: x[1], surface_dice_list)), axis=0)
     metrics['surface_dice'] = [float(x) for x in mean_surface_dice]
+    metrics['weighted_dice'] = calc_weighted_dice(
+        confusion_all, isolated_fp_all, nb_classes, isolated_fp_weights=isolated_fp_weights)
 
     return metrics

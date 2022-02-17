@@ -222,3 +222,27 @@ def focal_phi_loss(gt, pr, gamma=1.5, class_weights=1.):
     mcc = _mcc(gt, pr)
     loss = K.pow((1.0 - mcc) * class_weights, gamma)
     return tf.reduce_mean(loss)
+
+def active_contour_loss(gt, pr, w_region=1.0, w_region_in=1.0, w_region_out=1.0):
+    """
+    length term
+    """
+    x = pr[:,1:,:,:] - pr[:,:-1,:,:]
+    y = pr[:,:,1:,:] - pr[:,:,:-1,:]
+
+    delta_x = x[:,1:,:-2,:]**2
+    delta_y = y[:,:-2,1:,:]**2
+    delta_u = K.abs(delta_x + delta_y) 
+
+    length = K.mean(K.sqrt(delta_u + SMOOTH))
+
+    """
+    region term
+    """
+    region_in = K.abs(K.mean(pr * (gt - 1)**2))
+    region_out = K.abs(K.mean((1 - pr) * gt**2))
+
+    region = w_region_in * region_in + w_region_out * region_out
+    loss = length + w_region * region
+
+    return loss

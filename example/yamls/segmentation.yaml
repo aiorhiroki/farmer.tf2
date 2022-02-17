@@ -20,30 +20,51 @@ train_params:
     activation: softmax
     optimizer: adam
     loss:
-      functions:
-        CategoricalFocalLoss:
-            alpha: 
-                0: 1.0
-                1: 1.0
-                2: 2.0
-                3: 3.0
-            gamma: 5.0
-            class_weights: 
-                0: 0.0
-                1: 1.0
-                2: 2.0
-                3: 3.0
-        DiceLoss:
-            beta:
-                0: 1.0
-                1: 1.0
-                2: 2.0
-                3: 3.0
-            class_weights: 
-                0: 0.0
-                1: 1.0
-                2: 2.0
-                3: 3.0
+        functions:
+            CategoricalFocalLoss:
+                alpha: 
+                    0: 1.0
+                    1: 1.0
+                    2: 2.0
+                    3: 3.0
+                gamma: 5.0
+                class_weights: 
+                    0: 0.0
+                    1: 1.0
+                    2: 2.0
+                    3: 3.0
+            DiceLoss:
+                beta:
+                    0: 1.0
+                    1: 1.0
+                    2: 2.0
+                    3: 3.0
+                class_weights: 
+                    0: 0.0
+                    1: 1.0
+                    2: 2.0
+                    3: 3.0
+        param_scheduler:
+            dice_loss:
+                beta:
+                    schedule_fn: linear
+                    params:
+                        delta: -0.3
+                        min: 0.01
+        loss_weights:
+            l1: 1.
+            l2: 0.
+        loss_weights_scheduler:
+            l1:
+                schedule_fn: linear
+                params:
+                    delta: -0.1
+                    min: 0.
+            l2:
+                schedule_fn: linear
+                params:
+                    delta: 0.1
+                    max: 1.
     scheduler:
         functions:
             CosineDecay:
@@ -74,10 +95,17 @@ train_params:
             MotionBlur:
                 p: 1  # percentage of function inside 'OneOf'
             p: 1  # percetage of 'OneOf'
-    augmix: yes            
-epochs: 2
-segmentation_val_step: 2
-n_trials: 3
+    augmix: yes
+
+isolated_fp_weights:    # float or dict. If you want to change weights for each class, you set dict that key is class id.
+  0: 15.0
+  1: 10.0
+  2: 1.0
+  3: 5.0
+
+epochs: 5
+segmentation_val_step: 1
+n_trials: 1
 width: 512
 height: 256
 input_dir: image
@@ -97,7 +125,7 @@ train_colors:
 early_stopping: yes # yes if using early_stopping to interruption
 patience: 5
 monitor: val_loss
-mlflow: True
+mlflow: False
 experiment_name: test_experiment
 run_name: segmentation_test
 user_name: test_user
