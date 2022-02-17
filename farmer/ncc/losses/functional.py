@@ -189,6 +189,40 @@ def unified_focal_loss(gt, pr, weight=0.5, delta=0.6, gamma=0.2):
     else:
         return asymmetric_ftl + asymmetric_fl
 
+def _tn(gt, pr):
+    pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
+    reduce_axes = [0, 1, 2]
+    tn = tf.reduce_sum((1 - gt) * (1 - pr), axis=reduce_axes)
+
+    return tn
+
+def _mcc(gt, pr):
+    tp, fp, fn = _tp_fp_fn(gt, pr)
+    tn = _tn(gt, pr)
+    numerator =  (tp * tn - fp * fn)
+    denominator = tf.math.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
+    
+    return numerator/denominator
+
+def mcc_loss(gt, pr, class_weights=1.):
+    mcc = _mcc(gt, pr)
+    loss = (1 - mcc) * class_weights
+    return tf.reduce_mean(loss)
+
+def focal_phi_loss(gt, pr, gamma=1.5, class_weights=1.):
+    """
+    arXiv: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8073893/pdf/sensors-21-02803.pdf
+
+    Args:
+        gt (tensor): groundtruth mask
+        pr (tensor): prediction mask
+        gamma (float, optional): modulating factor that focus on learning hard negatives. range (0, 3]. Defaults to 1.5.
+        class_weights ([type], optional): class weights to mcc loss. Defaults to 1..
+    """
+    mcc = _mcc(gt, pr)
+    loss = K.pow((1.0 - mcc) * class_weights, gamma)
+    return tf.reduce_mean(loss)
+
 def active_contour_loss(gt, pr, w_region=1.0, w_region_in=1.0, w_region_out=1.0):
     """
     length term
