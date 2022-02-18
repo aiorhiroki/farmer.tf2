@@ -268,5 +268,16 @@ class ActiveContourLoss(Loss):
             pr=pr,
             w_region=self.w_region,
             w_region_in=self.w_region_in,
-            w_region_out=self.w_region_out
+            w_region_out=self.w_region_out,
+        ), self.flooding_level)
+
+class RecallLoss(Loss):
+    def __init__(self, flooding_level=0.):
+        super().__init__(name='recall_loss')
+        self.flooding_level = tf.Variable(flooding_level, dtype=tf.float32)
+    
+    def __call__(self, gt, pr):
+        return F.flooding(F.recall_loss(
+            gt=gt,
+            pr=pr,
         ), self.flooding_level)

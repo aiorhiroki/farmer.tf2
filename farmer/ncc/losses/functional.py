@@ -235,7 +235,7 @@ def active_contour_loss(gt, pr, w_region=1.0, w_region_in=1.0, w_region_out=1.0)
     delta_u = K.abs(delta_x + delta_y) 
 
     length = K.mean(K.sqrt(delta_u + SMOOTH))
-
+    
     """
     region term
     """
@@ -246,3 +246,14 @@ def active_contour_loss(gt, pr, w_region=1.0, w_region_in=1.0, w_region_out=1.0)
     loss = length + w_region * region
 
     return loss
+
+def recall_loss(gt, pr):
+    tp, fp, fn = _tp_fp_fn(gt, pr)
+    recall = tp / (fn + tp)
+    
+    pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
+    ce = -gt * K.log(pr)
+    
+    loss = - (1 - recall) * ce
+    
+    return  tf.reduce_mean(loss)
