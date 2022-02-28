@@ -247,13 +247,13 @@ def active_contour_loss(gt, pr, w_region=1.0, w_region_in=1.0, w_region_out=1.0)
 
     return loss
 
-def recall_loss(gt, pr):
+def recall_loss(gt, pr, class_weights=1.):
     tp, fp, fn = _tp_fp_fn(gt, pr)
     recall = tp / (fn + tp)
     
     pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
     ce = -gt * K.log(pr)
     
-    loss = - (1 - recall) * ce
+    loss = (1 - recall) * ce * class_weights
     
     return  tf.reduce_mean(loss)
