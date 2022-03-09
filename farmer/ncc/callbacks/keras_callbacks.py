@@ -258,25 +258,26 @@ class SlackLogger(keras.callbacks.Callback):
 
 
 class PlotHistory(keras.callbacks.Callback):
-    def __init__(self, save_dir, metrics):
-        self.save_dir = save_dir
-        self.metrics = metrics
-
-    def on_train_begin(self, logs={}):
-        self.plot_manager = MatPlotManager(self.save_dir)
-        for metric in self.metrics:
-            self.plot_manager.add_figure(
-                title=metric,
-                xy_labels=("epoch", metric),
-                labels=[
-                    "train",
-                    "validation"
-                ]
-            )
+    def __init__(self, save_dir):
+        self.plot_manager = MatPlotManager(save_dir)
 
     def on_epoch_end(self, epoch, logs={}):
+        if epoch == 0:
+            for metric in logs.keys():
+                if metric.startswith("val_"):
+                    continue
+                self.plot_manager.add_figure(
+                    title=metric,
+                    xy_labels=("epoch", metric),
+                    labels=[
+                        "train",
+                        "validation"
+                    ]
+                )
         # update learning figure
-        for metric in self.metrics:
+        for metric in logs.keys():
+            if metric.startswith("val_"):
+                continue
             figure = self.plot_manager.get_figure(metric)
             figure.add(
                 [
