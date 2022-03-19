@@ -9,3 +9,5 @@ COPY pyproject.toml ./
 COPY poetry.lock ./
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-root --no-dev
+
+ENV TF_CPP_MIN_LOG_LEVEL=3
