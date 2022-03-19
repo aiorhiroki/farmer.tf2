@@ -14,6 +14,7 @@ from farmer.domain.model import Trainer
 from farmer.domain.workflows.train_workflow import TrainWorkflow
 from farmer.ncc.mlflow_wrapper.mlflow_client_wrapper import MlflowClientWrapper
 
+
 def fit():
     yaml.add_constructor(
         yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
@@ -179,7 +180,7 @@ def optuna_command(trainer):
     else:
         pruner = getattr(optuna.pruners, trainer.pruner)(**pruner_params)
     study = optuna.create_study(
-        storage=f"sqlite:///optuna_study.db",
+        storage="sqlite:///optuna_study.db",
         load_if_exists=True,
         study_name=trainer.result_path,
         direction='maximize',
