@@ -16,7 +16,6 @@ class Trainer(Config, ImageLoader):
     gpu: str = None
     nb_gpu: int = None
     multi_gpu: bool = None
-    trained_path: str = None
     trained_model_path: str = None
     nb_train_data: int = 0
     nb_validation_data: int = 0
@@ -67,14 +66,6 @@ class Trainer(Config, ImageLoader):
         if self.result_dir is None:
             self.result_dir = datetime.today().strftime("%Y%m%d_%H%M%S")
         self.target_dir = os.path.join(self.root_dir, self.target_dir)
-        if self.trained_path is not None:
-            self.trained_path = os.path.join(self.root_dir, self.trained_path)
-            if self.trained_path.endswith('.h5'):
-                self.trained_model_path = self.trained_path
-            else:
-                self.trained_model_path = os.path.join(
-                    self.trained_path, "model/last_model.h5"
-                )
         if self.n_splits > len(self.train_dirs):
             self.n_splits = len(self.train_dirs)
         self.result_path = os.path.join(
