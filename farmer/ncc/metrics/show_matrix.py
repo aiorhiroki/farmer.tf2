@@ -72,4 +72,4 @@ def plot_confusion_matrix(cm, classes,
             plt.savefig(f'{save_dir}/normalized_confusion.png')
         else:
             plt.savefig(f'{save_dir}/count_confusion.png')
-    # plt.tight_layout()  # this may cause error
+    plt.close()

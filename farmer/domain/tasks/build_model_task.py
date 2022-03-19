@@ -216,19 +216,17 @@ class BuildModelTask:
             print('------------------')
             print('Loss:', loss_funcs.keys())
             print('------------------')
+            
+            loss_container = list()
+            
             if task_id == Task.CLASSIFICATION:
                 for i, loss_func in enumerate(loss_funcs.items()):
                     loss_name, params = loss_func
-                    if i == 0:
-                        if params is None:
-                            loss = getattr(keras.losses, loss_name)()
-                        else:
-                            loss = getattr(keras.losses, loss_name)(**params)
+                    if params is None:
+                        loss_instance = getattr(keras.losses, loss_name)()
                     else:
-                        if params is None:
-                            loss += getattr(keras.losses, loss_name)()
-                        else:
-                            loss += getattr(keras.losses, loss_name)(**params)
+                        loss_instance = getattr(keras.losses, loss_name)(**params)
+                    loss_container.append(loss_instance)
                 metrics = ["acc"]
 
             elif task_id == Task.SEMANTIC_SEGMENTATION:
@@ -246,22 +244,39 @@ class BuildModelTask:
                             isinstance(params["beta"], dict) ):
                             params["beta"] = np.array(
                                 list(params["beta"].values()) )
-                    if i == 0:
-                        if params is None:
-                            loss = getattr(losses, loss_name)()
-                        else:
-                            loss = getattr(losses, loss_name)(**params)
+                    if params is None:
+                        loss_instance = getattr(losses, loss_name)()
                     else:
-                        if params is None:
-                            loss += getattr(losses, loss_name)()
-                        else:
-                            loss += getattr(losses, loss_name)(**params)
+                        loss_instance = getattr(losses, loss_name)(**params)
+                    loss_container.append(loss_instance)
+
                 metrics = [
                     segmentation_models.metrics.IOUScore(
                         class_indexes=list(range(1, self.config.nb_classes))),
                     segmentation_models.metrics.FScore(
                         class_indexes=list(range(1, self.config.nb_classes)))
-                    ],
+                ]
+                for class_id in range(self.config.nb_classes):
+                    metrics += [
+                        segmentation_models.metrics.IOUScore(
+                            class_indexes=class_id,
+                            name=f"{self.config.class_names[class_id]}-iou",
+                        )
+                    ]
+                    metrics += [
+                        segmentation_models.metrics.FScore(
+                            class_indexes=class_id,
+                            name=f"{self.config.class_names[class_id]}-dice",
+                        )
+                    ]
 
-            model.compile(optimizer, loss, metrics)
+            # compound loss
+            if len(loss_container) > 1:
+                loss_weights = loss.get("loss_weights", dict())
+                w_l1 = loss_weights.get('l1', 1.)
+                w_l2 = loss_weights.get('l2', 1.)
+                loss_instance = losses.CompoundLoss(loss_container[0], loss_container[1], w_l1, w_l2)
+
+            model.compile(optimizer, loss_instance, metrics)
+
         return model

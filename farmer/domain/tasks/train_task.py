@@ -4,6 +4,7 @@ from tensorflow import keras
 import tensorflow as tf
 from farmer import ncc
 from farmer.ncc import schedulers
+from farmer.ncc.callbacks import keras_callbacks
 from optuna.integration import TFKerasPruningCallback
 
 
@@ -91,40 +92,22 @@ class TrainTask:
             scheduler = keras.callbacks.ReduceLROnPlateau(
                 factor=0.5, patience=10, verbose=1)
 
-        # Plot History
-        # result_dir/learning/
-        learning_path = self.config.learning_path
-
-        plot_history = ncc.callbacks.PlotHistory(
-            learning_path,
-            ['loss', 'acc', 'iou_score', 'f1-score']
-        )
-
-        plot_learning_rate = ncc.callbacks.PlotLearningRate(learning_path)
-
-        callbacks = [checkpoint, scheduler, plot_history, plot_learning_rate]
-
+        learning_path = self.config.learning_path  # result_dir/learning/
+        plot_history = ncc.callbacks.PlotHistory(learning_path)
+        callbacks = [checkpoint, scheduler, plot_history]
         if self.config.task == ncc.tasks.Task.SEMANTIC_SEGMENTATION:
-            # Plot IoU History
-            iou_history = ncc.callbacks.IouHistory(
-                save_dir=learning_path,
-                valid_dataset=valid_dataset,
-                class_names=self.config.class_names,
-                batch_size=self.config.train_params.batch_size
-            )
-
-            # Predict validation
             # result_dir/image/validation/
             val_save_dir = os.path.join(self.config.image_path, "validation")
-
             generate_sample_result = ncc.callbacks.GenerateSampleResult(
                 val_save_dir=val_save_dir,
                 valid_dataset=valid_dataset,
                 nb_classes=self.config.nb_classes,
                 batch_size=self.config.train_params.batch_size,
-                segmentation_val_step=self.config.segmentation_val_step
+                segmentation_val_step=self.config.segmentation_val_step,
+                sdice_tolerance=self.config.sdice_tolerance,
+                isolated_fp_weights=self.config.isolated_fp_weights,
             )
-            callbacks.extend([iou_history, generate_sample_result])
+            callbacks.extend([generate_sample_result])
 
             if self.config.optuna:
                 # Trial prune for Optuna
@@ -174,6 +157,19 @@ class TrainTask:
             )
             callbacks.append(early_stopping)
 
+        # Loss Param Scheduler
+        loss_param_scheduler = self.config.train_params.loss.get('param_scheduler')
+        
+        if loss_param_scheduler:
+            for loss_name, target in loss_param_scheduler.items():
+                callbacks.append(keras_callbacks.LossParamScheduler(base_model, loss_name, target))
+        
+        # Loss Weights Scheduler
+        loss_weights_scheduler = self.config.train_params.loss.get('loss_weights_scheduler', dict())
+        
+        if loss_weights_scheduler:
+            callbacks.append(keras_callbacks.LossWeightsScheduler(base_model, loss_weights_scheduler))
+        
         return callbacks
 
     def _do_model_optimization_task(

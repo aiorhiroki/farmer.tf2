@@ -115,17 +115,17 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
 
         elif weights_info["weights"] in {'imagenet', 'pascal_voc', 'cityscapes', None}:
             weights = weights_info["weights"]
-        
+
         elif os.path.exists(weights_info["weights"]) and weights_info.get("classes") is not None:
             classes = int(weights_info["classes"])
             weights = weights_info["weights"]
-        
+
         else:
             raise ValueError('The `weights` should be either '
-                            '`None` (random initialization), `imagenet`, `pascal_voc`, `cityscapes`, '
-                            'original weights path (pre-training on original data), '
-                            'or the path to the weights file to be loaded and'
-                            '`classes` should be number of original weights output units')
+                             '`None` (random initialization), `imagenet`, `pascal_voc`, `cityscapes`, '
+                             'original weights path (pre-training on original data), '
+                             'or the path to the weights file to be loaded and'
+                             '`classes` should be number of original weights output units')
 
     else:
         weights = 'imagenet'
@@ -136,7 +136,7 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
         img_input = Input(shape=input_shape)
     else:
         img_input = input_tensor
-    
+
     # If input_shape is None, infer shape from input_tensor
     if backend.image_data_format() == 'channels_first':
         rows = input_shape[1]
@@ -149,12 +149,12 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
         default_size = rows
     else:
         default_size = 224
-    
+
     if weights == 'imagenet':
         if alpha not in [0.35, 0.50, 0.75, 1.0, 1.3, 1.4]:
             raise ValueError('If imagenet weights are being loaded, '
-                            'alpha can be one of `0.35`, `0.50`, `0.75`, '
-                            '`1.0`, `1.3` or `1.4` only.')
+                             'alpha can be one of `0.35`, `0.50`, `0.75`, '
+                             '`1.0`, `1.3` or `1.4` only.')
 
         if rows != cols or rows not in [96, 128, 160, 192, 224]:
             rows = 224
@@ -162,9 +162,9 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
     OS = 8
     first_block_filters = _make_divisible(32 * alpha, 8)
     x = Conv2D(first_block_filters,
-                kernel_size=3,
-                strides=(2, 2), padding='same',
-                use_bias=False, name='Conv')(img_input)
+               kernel_size=3,
+               strides=(2, 2), padding='same',
+               use_bias=False, name='Conv')(img_input)
     x = BatchNormalization(
         epsilon=1e-3, momentum=0.999, name='Conv_BN')(x)
     x = Activation(relu6, name='Conv_Relu6')(x)
@@ -210,7 +210,7 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
 
     x = _inverted_res_block(x, filters=320, alpha=alpha, stride=1, rate=4,
                             expansion=6, block_id=16, skip_connection=False)
-    
+
     if alpha > 1.0:
         last_block_filters = _make_divisible(1280 * alpha, 8)
     else:
@@ -224,14 +224,14 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
 
     x = GlobalAveragePooling2D()(x)
     x = Dense(classes, activation='softmax')(x)
-    
+
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
     if input_tensor is not None:
         inputs = layer_utils.get_source_inputs(input_tensor)
     else:
         inputs = img_input
-    
+
     # Create model.
     model = Model(inputs, x, name='mobilenetv2')
 
@@ -239,20 +239,22 @@ def MobileNetV2(classes=1000, input_tensor=None, input_shape=(512, 512, 3), weig
     if weights == 'imagenet':
         print("movilenetv2 load model imagenet")
         model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
-                        str(alpha) + '_' + str(rows) + '.h5')
+                      str(alpha) + '_' + str(rows) + '.h5')
         weight_path = BASE_WEIGHT_PATH + model_name
         weights_path = data_utils.get_file(
             model_name, weight_path, cache_subdir='models')
         model.load_weights(weights_path)
     elif not (weights in {'pascal_voc', 'cityscapes', None}):
-        model.load_weights(weights)
+        # distinct between classification model and segmentation model
+        if weights_info.get('task') is None or weights_info.get('task') == 'classification':
+            model.load_weights(weights)
 
     if include_top:
         return model
     else:
         # get last _inverted_res_block layer
         no_top_model = Model(
-            inputs=model.input, 
+            inputs=model.input,
             outputs=model.get_layer(index=-6).output
         )
         return no_top_model

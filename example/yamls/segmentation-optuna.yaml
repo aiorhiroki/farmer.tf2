@@ -75,8 +75,9 @@ train_params:
         - 0.00001  # min(10^n)
         - 0.1  # max(10^n)
     weights_info:
+        task:  # segmentation or classification or None
         classes: # assign only when you use backbone weights
-        weights: 
+        weights: # pascal_voc, cityscapes, or your model path(*.h5)
     augmentation:
         # - horizontal_flip
         # - zoom
@@ -100,4 +101,10 @@ train_colors:
     - 5
     - 10
     - 15
-    
+mlflow: True
+experiment_name: test_experiment
+run_name: segmentation-optuna_test
+user_name: test_user
+tracking_uri: './mlruns' # path to mlruns
+description: test
+version: 0.0.0
