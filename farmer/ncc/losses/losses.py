@@ -283,3 +283,54 @@ class RecallLoss(Loss):
             pr=pr,
             class_weights=self.class_weights
         ), self.flooding_level)
+
+class FocalRecallLoss(Loss):
+    def __init__(self, gamma=2.0, alpha=0.25, class_weights=None, flooding_level=0.):
+        super().__init__(name='focal_recall_loss')
+        self.gamma = gamma
+        self.alpha = alpha
+        self.class_weights = class_weights if class_weights is not None else 1
+        self.flooding_level = tf.Variable(flooding_level, dtype=tf.float32)
+    
+    def __call__(self, gt, pr):
+        return F.flooding(F.focal_recall_loss(
+            gt,
+            pr,
+            gamma=self.gamma,
+            alpha=self.alpha,
+            class_weights=self.class_weights
+        ), self.flooding_level)
+
+class Poly1Loss(Loss):
+    def __init__(self, epsilon=-1, class_weights=None, flooding_level=0.):
+        super().__init__(name='poly1_loss')
+        self.epsilon = epsilon
+        self.class_weights = class_weights if class_weights is not None else 1
+        self.flooding_level = tf.Variable(flooding_level, dtype=tf.float32)
+    
+    def __call__(self, gt, pr):
+        return F.flooding(F.poly1_loss(
+            gt=gt,
+            pr=pr,
+            epsilon=self.epsilon,
+            class_weights=self.class_weights
+        ), self.flooding_level)
+
+class Poly1FocalLoss(Loss):
+    def __init__(self, epsilon=-1, gamma=2.0, alpha=0.25, class_weights=None, flooding_level=0.):
+        super().__init__(name='poly1_focal_loss')
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.alpha = alpha
+        self.class_weights = class_weights if class_weights is not None else 1
+        self.flooding_level = tf.Variable(flooding_level, dtype=tf.float32)
+    
+    def __call__(self, gt, pr):
+        return F.flooding(F.poly1_focal_loss(
+            gt=gt,
+            pr=pr,
+            epsilon=self.epsilon,
+            gamma=self.gamma,
+            alpha=self.alpha,
+            class_weights=self.class_weights
+        ), self.flooding_level)
