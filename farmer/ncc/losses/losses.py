@@ -301,6 +301,21 @@ class FocalRecallLoss(Loss):
             class_weights=self.class_weights
         ), self.flooding_level)
 
+class PolyRecallLoss(Loss):
+    def __init__(self, epsilon=-1, class_weights=None, flooding_level=0.):
+        super().__init__(name='poly_recall_loss')
+        self.epsilon = epsilon
+        self.class_weights = class_weights if class_weights is not None else 1
+        self.flooding_level = tf.Variable(flooding_level, dtype=tf.float32)
+    
+    def __call__(self, gt, pr):
+        return F.flooding(F.poly_recall_loss(
+            gt,
+            pr,
+            epsilon=self.epsilon,
+            class_weights=self.class_weights
+        ), self.flooding_level)
+
 class Poly1Loss(Loss):
     def __init__(self, epsilon=-1, class_weights=None, flooding_level=0.):
         super().__init__(name='poly1_loss')
