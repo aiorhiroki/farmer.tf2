@@ -257,3 +257,30 @@ def recall_loss(gt, pr, class_weights=1.):
     loss = (1 - recall) * ce * class_weights
     
     return  tf.reduce_mean(loss)
+
+def focal_recall_loss(gt, pr, gamma=2.0, alpha=0.25, class_weights=1.):
+    tp, fp, fn = _tp_fp_fn(gt, pr)
+    recall = tp / (fn + tp)
+    
+    fl = categorical_focal_loss(gt, pr, gamma=gamma, alpha=alpha, class_weights=class_weights)
+    loss = (1 - recall) * fl
+    return  tf.reduce_mean(loss)
+
+def poly_recall_loss(gt, pr, epsilon=-1, class_weights=1.):
+    tp, fp, fn = _tp_fp_fn(gt, pr)
+    recall = tp / (fn + tp)
+    
+    poly = poly1_loss(gt, pr, epsilon, class_weights)
+    loss = (1 - recall) * poly
+    return  loss
+
+def poly1_loss(gt, pr, epsilon=-1, class_weights=1.):
+    pr = tf.clip_by_value(pr, SMOOTH, 1 - SMOOTH)
+    ce = -gt * K.log(pr)
+    loss = (ce + epsilon * (1 - pr)) * class_weights
+    return tf.reduce_mean(loss)
+
+def poly1_focal_loss(gt, pr, epsilon=-1, gamma=2.0, alpha=0.25, class_weights=1.):
+    fl = categorical_focal_loss(gt, pr, gamma=gamma, alpha=alpha, class_weights=class_weights)
+    loss = fl + tf.reduce_mean(epsilon * K.pow((1 - pr), gamma+1) * class_weights)
+    return loss
