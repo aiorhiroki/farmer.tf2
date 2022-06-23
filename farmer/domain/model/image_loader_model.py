@@ -18,6 +18,7 @@ class ImageLoader:
     input_dir: str = None
     label_dir: str = None
     video_csv: str = None
+    count: dict = None
     train_dirs: List[str] = field(default_factory=list)
     val_dirs: List[str] = field(default_factory=list)
     test_dirs: List[str] = field(default_factory=list)

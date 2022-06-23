@@ -81,6 +81,13 @@ class Trainer(Config, ImageLoader):
             self.root_dir, self.result_root_dir, self.result_dir)
         if os.path.exists(self.result_path) and not self.overwrite:
             self.result_path += datetime.today().strftime("_%Y%m%d_%H%M%S")
+        if self.count:
+            if not 'train_count' in self.count.keys():
+                self.count["train_count"] = None
+            if not 'val_count' in self.count.keys():
+                self.count["val_count"] = None
+            if not 'test_count' in self.count.keys():
+                self.count["test_count"] = None
         self.info_path = os.path.join(self.result_path, self.info_dir)
         self.model_path = os.path.join(self.result_path, self.model_dir)
         self.learning_path = os.path.join(self.result_path, self.learning_dir)

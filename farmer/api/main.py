@@ -8,7 +8,7 @@ from tensorflow.keras.backend import clear_session
 import logging
 from copy import deepcopy
 
-from farmer.ncc.utils import cross_val_split
+from farmer.ncc.utils import cross_val_split, limit_dirs
 from farmer.domain.model.task_model import Task
 from farmer.domain.model import Trainer
 from farmer.domain.workflows.train_workflow import TrainWorkflow
@@ -115,6 +115,42 @@ def fit():
                 else:
                     train_workflow = TrainWorkflow(trainer)
                     train_workflow.command()
+        elif trainer.count:
+            # limit size of train data
+            if trainer.count["val_count"]:
+                dirs_list = trainer.val_dirs
+                count_list = trainer.count["val_count"]
+                trainer.val_dirs = limit_dirs(dirs_list, count_list, trainer)
+            if trainer.count["test_count"]:
+                dirs_list = trainer.test_dirs
+                count_list = trainer.count["test_count"]
+                trainer.test_dirs = limit_dirs(dirs_list, count_list, trainer)
+            if trainer.count["train_count"]:
+                for item in trainer.count["train_count"]:
+                    if type(item) is int: train_count_len = 1
+                    elif type(item) is list:
+                        train_count_len = len(item)
+                        break
+                if train_count_len == 1:
+                    dirs_list = trainer.train_dirs
+                    count_list = trainer.count["train_count"]
+                    trainer.train_dirs = limit_dirs(dirs_list, count_list, trainer)
+                    # start training
+                    train_workflow = TrainWorkflow(trainer)
+                    train_workflow.command()
+                elif train_count_len != 1:
+                    for i, count in enumerate(trainer.count["train_count"]):
+                        if type(count) is int:
+                            trainer.count["train_count"][i] = [count] * train_count_len
+                    for k, count_list in enumerate(zip(*trainer.count["train_count"])):
+                        trainer = Trainer(**deepcopy(config))
+                        print(f"train count step: {k}")
+                        dirs_list = trainer.train_dirs
+                        trainer.train_dirs = limit_dirs(dirs_list, count_list, trainer)
+                        trainer = separate_result_path(trainer, k)
+                        # start training
+                        train_workflow = TrainWorkflow(trainer)
+                        train_workflow.command()
         else:
             if trainer.optuna:
                 optuna_command(trainer)
